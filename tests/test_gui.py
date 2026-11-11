@@ -609,7 +609,7 @@ def test_theme_setting_is_validated(tmp_path):
 
 
 def test_update_check_shows_banner_tray_item_and_skip(qapp, make_ctl):
-    release = {"tag_name": "v9.9.9", "html_url": "https://github.com/Xatta-Trone/papernym/releases/tag/v9.9.9"}
+    release = {"tag_name": "v9.9.9", "html_url": "https://github.com/Xatta-Trone/PaperNym/releases/tag/v9.9.9"}
 
     def http(url, params=None, headers=None, kind="json"):
         return release if "api.github.com" in url else fake_http(url, params, headers, kind)

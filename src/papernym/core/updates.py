@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from papernym import __version__
 
-REPO = "Xatta-Trone/papernym"
+REPO = "Xatta-Trone/PaperNym"
 PROJECT_URL = f"https://github.com/{REPO}"
 RELEASES_URL = f"{PROJECT_URL}/releases"
 ISSUES_URL = f"{PROJECT_URL}/issues"

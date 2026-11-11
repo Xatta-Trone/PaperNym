@@ -93,7 +93,7 @@ You can also start it by hand from the Actions tab ("Run workflow"). With no tag
 builds the artifact.
 
 Bump `src/papernym/__init__.py` before tagging. The app's update check reads the latest
-release of `Xatta-Trone/papernym`.
+release of `Xatta-Trone/PaperNym`.
 
 ## Linux package
 

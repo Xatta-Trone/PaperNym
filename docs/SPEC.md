@@ -796,7 +796,7 @@ is cloud-synced.
   optional signing hook.
 - Update check (`core/updates.py`): 30 s after start and then every 24 h (and from About >
   Check for updates now), one unauthenticated GET to
-  `https://api.github.com/repos/Xatta-Trone/papernym/releases/latest` with only a
+  `https://api.github.com/repos/Xatta-Trone/PaperNym/releases/latest` with only a
   `PaperNym/<version>` user agent, on a short background thread. Tags are compared as version
   numbers (`v0.10.0` > `v0.9.0`). A newer release shows a banner (Download, Skip this
   version) and a tray item; a skipped version only shows again when checked by hand.

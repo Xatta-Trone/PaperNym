@@ -139,7 +139,7 @@ def build_deb(deb_version: str) -> Path:
         # Suggests, not Recommends: apt installs recommendations by default, and these would
         # pull a whole GNOME or KDE desktop onto Xfce, minimal or server systems.
         "Suggests: gnome-shell-extension-appindicator",
-        "Homepage: https://github.com/Xatta-Trone/papernym",
+        "Homepage: https://github.com/Xatta-Trone/PaperNym",
         "Description: rename research paper PDFs from their publication metadata",
         " PaperNym watches your folders (such as Downloads) and renames academic PDFs from",
         " their DOI or arXiv metadata, for example 2025_Smith_Deep_learning_for_....pdf.",

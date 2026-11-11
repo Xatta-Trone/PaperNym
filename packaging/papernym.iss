@@ -9,7 +9,7 @@
 #define AppName "PaperNym"
 #define AppExe "PaperNym.exe"
 #define CliExe "papernym-cli.exe"
-#define Repo "https://github.com/Xatta-Trone/papernym"
+#define Repo "https://github.com/Xatta-Trone/PaperNym"
 
 [Setup]
 AppId={{45A3E91D-4BE9-4FDE-8CD9-6B8E52ED8481}

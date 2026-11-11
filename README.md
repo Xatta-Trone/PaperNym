@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Xatta-Trone/papernym/main/assets/papernym-icon-1024.png" alt="PaperNym icon" width="112">
+  <img src="https://raw.githubusercontent.com/Xatta-Trone/PaperNym/main/assets/papernym-icon-1024.png" alt="PaperNym icon" width="112">
 </p>
 
 <h1 align="center">PaperNym</h1>
@@ -15,10 +15,10 @@
 
 <p align="center">
   <a href="https://pypi.org/project/papernym/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/papernym?logo=pypi&logoColor=white&color=0B5563"></a>
-  <a href="https://github.com/Xatta-Trone/papernym/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Xatta-Trone/papernym?label=release&logo=github&color=0B5563"></a>
+  <a href="https://github.com/Xatta-Trone/PaperNym/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Xatta-Trone/PaperNym?label=release&logo=github&color=0B5563"></a>
   <a href="https://pypistats.org/packages/papernym"><img alt="PyPI downloads" src="https://img.shields.io/pypi/dm/papernym?label=downloads&logo=pypi&logoColor=white&color=0B5563"></a>
-  <a href="https://github.com/Xatta-Trone/papernym/releases"><img alt="GitHub downloads" src="https://img.shields.io/github/downloads/Xatta-Trone/papernym/total?label=downloads&logo=github&color=0B5563"></a>
-  <a href="https://github.com/Xatta-Trone/papernym/blob/main/LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
+  <a href="https://github.com/Xatta-Trone/PaperNym/releases"><img alt="GitHub downloads" src="https://img.shields.io/github/downloads/Xatta-Trone/PaperNym/total?label=downloads&logo=github&color=0B5563"></a>
+  <a href="https://github.com/Xatta-Trone/PaperNym/blob/main/LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0B5563">
   <img alt="Ubuntu 22.04 and newer" src="https://img.shields.io/badge/Ubuntu-22.04%2B-0B5563">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-FFB020">
@@ -77,7 +77,7 @@ and gives the file a name you can read, sort and search.
 ### Windows (recommended)
 
 1. Download `PaperNym-Setup-<version>.exe` from the
-   [latest release](https://github.com/Xatta-Trone/papernym/releases/latest).
+   [latest release](https://github.com/Xatta-Trone/PaperNym/releases/latest).
 2. Run it. It installs for your user account only (no administrator rights) into
    `%LOCALAPPDATA%\Programs\PaperNym`.
 3. PaperNym opens and walks you through choosing folders and a name format.
@@ -96,7 +96,7 @@ Requirements: Windows 10 or 11 (64-bit) and an internet connection for lookups.
 ### Ubuntu and Debian
 
 1. Download `papernym_<version>_amd64.deb` from the
-   [latest release](https://github.com/Xatta-Trone/papernym/releases/latest).
+   [latest release](https://github.com/Xatta-Trone/PaperNym/releases/latest).
 2. Install it; `apt` also installs the few system libraries Qt needs:
 
    ```bash
@@ -185,7 +185,7 @@ Good to know:
 
 Windows and Ubuntu are tested on real machines. On macOS the automated tests pass, but the
 app has not yet been tried on a real Mac: please
-[open an issue](https://github.com/Xatta-Trone/papernym/issues) if something does not work.
+[open an issue](https://github.com/Xatta-Trone/PaperNym/issues) if something does not work.
 
 ## Getting started
 
@@ -405,7 +405,7 @@ touched.
 ## Development
 
 ```bash
-git clone https://github.com/Xatta-Trone/papernym.git
+git clone https://github.com/Xatta-Trone/PaperNym.git
 cd papernym
 python -m venv .venv
 .venv\Scripts\activate                    # Linux and macOS: source .venv/bin/activate
@@ -414,12 +414,12 @@ python -m pytest -q
 papernym-gui --sandbox --show --debug     # run the tray app from source
 ```
 
-- [`docs/SPEC.md`](https://github.com/Xatta-Trone/papernym/blob/main/docs/SPEC.md) is the full specification: behaviour, naming rules, edge cases.
-- [`docs/BUILDING.md`](https://github.com/Xatta-Trone/papernym/blob/main/docs/BUILDING.md) covers building the Windows exe and installer, and releasing.
-- [`docs/PROGRESS.md`](https://github.com/Xatta-Trone/papernym/blob/main/docs/PROGRESS.md) is the work log and milestone checklist.
+- [`docs/SPEC.md`](https://github.com/Xatta-Trone/PaperNym/blob/main/docs/SPEC.md) is the full specification: behaviour, naming rules, edge cases.
+- [`docs/BUILDING.md`](https://github.com/Xatta-Trone/PaperNym/blob/main/docs/BUILDING.md) covers building the Windows exe and installer, and releasing.
+- [`docs/PROGRESS.md`](https://github.com/Xatta-Trone/PaperNym/blob/main/docs/PROGRESS.md) is the work log and milestone checklist.
 
 Bug reports and ideas are welcome in
-[Issues](https://github.com/Xatta-Trone/papernym/issues). For a misnamed paper, include its
+[Issues](https://github.com/Xatta-Trone/PaperNym/issues). For a misnamed paper, include its
 DOI and the output of `papernym compare` on that file, if you can.
 
 ## Roadmap
@@ -438,11 +438,11 @@ Planned:
 - Packages for other Linux distributions (Flatpak or AppImage)
 
 What changed in each version is in the
-[changelog](https://github.com/Xatta-Trone/papernym/blob/main/CHANGELOG.md).
+[changelog](https://github.com/Xatta-Trone/PaperNym/blob/main/CHANGELOG.md).
 
 ## Licence and credits
 
-PaperNym is released under the [MIT licence](https://github.com/Xatta-Trone/papernym/blob/main/LICENSE) © 2026
+PaperNym is released under the [MIT licence](https://github.com/Xatta-Trone/PaperNym/blob/main/LICENSE) © 2026
 [Xatta-Trone](https://github.com/Xatta-Trone). The Windows build bundles Qt for Python
 (PySide6, LGPL-3.0), linked dynamically. Licences of all bundled components ship in
 `THIRD_PARTY_LICENSES.txt`.

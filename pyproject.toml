@@ -19,9 +19,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Xatta-Trone/papernym"
-Issues = "https://github.com/Xatta-Trone/papernym/issues"
-Releases = "https://github.com/Xatta-Trone/papernym/releases"
+Homepage = "https://github.com/Xatta-Trone/PaperNym"
+Issues = "https://github.com/Xatta-Trone/PaperNym/issues"
+Releases = "https://github.com/Xatta-Trone/PaperNym/releases"
 
 [project.optional-dependencies]
 gui = ["PySide6>=6.5"]

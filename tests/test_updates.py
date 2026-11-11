@@ -16,11 +16,11 @@ def test_check_reads_the_latest_release_and_sends_nothing_personal():
 
     def http_get(url, params=None, headers=None, kind="json"):
         seen.append((url, params, headers))
-        return {"tag_name": "v9.0.0", "html_url": "https://github.com/Xatta-Trone/papernym/releases/tag/v9.0.0"}
+        return {"tag_name": "v9.0.0", "html_url": "https://github.com/Xatta-Trone/PaperNym/releases/tag/v9.0.0"}
 
     info = updates.check(http_get, current="0.1.0")
     assert info.newer and info.latest == "9.0.0" and info.url.endswith("/v9.0.0")
-    assert seen == [("https://api.github.com/repos/Xatta-Trone/papernym/releases/latest", None,
+    assert seen == [("https://api.github.com/repos/Xatta-Trone/PaperNym/releases/latest", None,
                      {"Accept": "application/vnd.github+json"})]
 
 
