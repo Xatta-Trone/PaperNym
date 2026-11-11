@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M0
-- **Next task:** editable install and placeholder pytest test
-- **Last test run:** `.venv\Scripts\python.exe -c "...16 module imports..."` — pass
+- **Current milestone:** M0 complete; awaiting approval to start M1
+- **Next task:** M1 `core/config.py` (after owner says to proceed)
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 1 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -26,7 +26,7 @@ Rules:
 - [x] Move `paper_renamer.py`, `test_apis.py`, `compare_sources.py`, `compare_pdf_libs.py` into `prototype/` (read-only reference); leave `pdf_metadata.py` alone
 - [x] `pyproject.toml` (name `papernym`, deps `pypdfium2`, `requests`, `watchdog`; extra `gui = ["PySide6"]`; dev extra `pytest`)
 - [x] Package skeleton `src/papernym/` per SPEC section 3; `tests/`
-- [ ] Editable install into `.venv`; `pytest` passes with one placeholder test
+- [x] Editable install into `.venv`; `pytest` passes with one placeholder test
 
 ### M1 Core, part 1
 - [ ] `core/config.py`: load, save (atomic), defaults, validation, env overrides
@@ -160,3 +160,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -c "...16 module imports..."` — pass; all skeleton modules import from `src/`.
 - Decisions: Keep future modules as docstring stubs so M1–M5 implement and test each feature in milestone order. Set initial version in `papernym.__version__`.
 - Next: Install the package in editable mode and add the first pytest smoke test.
+
+### 2026-11-10  M0  Install and verify package
+- Done: Installed PaperNym in editable mode into `.venv` with the dev extra, added the first smoke test, and completed M0.
+- Files: `tests/test_smoke.py`, `PROGRESS.md`; installation artifacts stay inside ignored `.venv/`.
+- Tests: `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-m0-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — pass, 1 test.
+- Decisions: Use a temporary `PAPERNYM_HOME` for the test run; the smoke test imports the installed package without network or sample PDFs.
+- Next: Await the owner's instruction before starting M1 `core/config.py`.
