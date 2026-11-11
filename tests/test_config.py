@@ -60,3 +60,26 @@ def test_invalid_json_is_reported(tmp_path):
     (tmp_path / "config.json").write_text("{", encoding="utf-8")
     with pytest.raises(config.ConfigError, match="cannot read"):
         config.load_config(tmp_path)
+
+
+def test_folder_overlap_rejected_or_merged(tmp_path):
+    parent = tmp_path / "Papers"
+    child = parent / "Articles"
+    child.mkdir(parents=True)
+    cfg = config.add_folder(config.default_config(), parent)
+    with pytest.raises(config.ConfigError, match="already inside"):
+        config.add_folder(cfg, child)
+    cfg = config.add_folder(config.default_config(), child)
+    merged = config.add_folder(cfg, parent)
+    assert merged["folders"] == [{"path": str(parent.resolve()), "recursive": True}]
+    nonrecursive = config.add_folder(config.default_config(), parent, recursive=False)
+    assert len(config.add_folder(nonrecursive, child)["folders"]) == 2
+
+
+def test_reference_manager_warning_does_not_block(tmp_path):
+    store = tmp_path / "Zotero" / "storage"
+    store.mkdir(parents=True)
+    warnings = []
+    cfg = config.add_folder(config.default_config(), store, on_warning=warnings.append)
+    assert cfg["folders"][0]["path"] == str(store.resolve())
+    assert len(warnings) == 1

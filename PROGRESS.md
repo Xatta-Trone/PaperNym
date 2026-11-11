@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** folder overlap and reference-manager warning rules
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_watcher.py` — 5 passed
+- **Next task:** section 14 non-UI edge-case audit
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 17 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -62,7 +62,7 @@ Rules:
 - [x] Manual fix (by DOI, by edited fields) and refresh
 - [x] `core/watcher.py`: events, queue, start-up scan
 - [x] Watcher: settings reload, folder reconcile (unplugged drive), retry timer, pause
-- [ ] Folder rules: overlap, reference-manager warning
+- [x] Folder rules: overlap, reference-manager warning
 - [ ] Every non-UI row of SPEC section 14 has a passing test
 
 ### M4 Minimal CLI
@@ -382,3 +382,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_watcher.py` — 5 passed; an initial pause test exposed an in-memory config mutation and the watcher now tracks the prior pause state explicitly.
 - Decisions: Keep the last valid settings and existing watches if a reload is malformed; leave database rows alone while a folder is unavailable.
 - Next: Validate folder overlaps and warn about reference-manager storage.
+
+### 2026-11-10  M3  Validate watched folders
+- Done: Added shared folder-add logic that rejects paths already covered by a recursive watch, merges child watches into a new recursive parent, and warns about reference-manager stores.
+- Files: `src/papernym/core/config.py`, `tests/test_config.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 17 passed.
+- Decisions: Return a validated config copy from `add_folder`; leave the caller responsible for saving it and showing any warning.
+- Next: Audit and test every non-UI edge case in SPEC section 14.

@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Callable
 
 from .naming import TemplateError, validate_template
 
@@ -127,3 +128,38 @@ def save_config(config: dict, home: str | Path | None = None) -> None:
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
+
+
+def _within(child: str | Path, parent: str | Path) -> bool:
+    child_key = os.path.normcase(os.path.abspath(os.fspath(child)))
+    parent_key = os.path.normcase(os.path.abspath(os.fspath(parent)))
+    try:
+        return os.path.commonpath((child_key, parent_key)) == parent_key
+    except ValueError:
+        return False
+
+
+def add_folder(config: dict, path: str | Path, *, recursive: bool = True,
+               on_warning: Callable[[str], None] | None = None) -> dict:
+    """Return settings with a folder added, merged, or rejected for overlap."""
+    root = Path(path).expanduser().resolve()
+    if not root.is_dir():
+        raise ConfigError(f"not a folder: {root}")
+    result = validate_config(config)
+    folders = [dict(folder) for folder in result["folders"]]
+    same = next((folder for folder in folders if _within(root, folder["path"])
+                 and _within(folder["path"], root)), None)
+    if same:
+        folders.remove(same)
+    for folder in folders:
+        if folder["recursive"] and _within(root, folder["path"]):
+            raise ConfigError(f"{root} is already inside recursive watched folder {folder['path']}")
+    if recursive:
+        folders = [folder for folder in folders if not _within(folder["path"], root)]
+    folders.append({"path": str(root), "recursive": recursive})
+    result["folders"] = folders
+    lower = str(root).replace("\\", "/").lower()
+    if "zotero/storage" in lower or "mendeley" in lower or "endnote" in lower:
+        if on_warning:
+            on_warning("Reference-manager storage detected; renaming files there may break its links.")
+    return result
