@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** DOI, arXiv, and title identification paths
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_http.py` — 10 passed
+- **Next task:** identification cache and `misses` table
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 5 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -44,7 +44,7 @@ Rules:
 - [x] `core/pdfread.py`: title guess, author line, `paperish`, unreadable PDFs
 - [x] `core/sources/`: crossref, doiorg, openalex, semanticscholar, arxiv with field mapping (both years)
 - [x] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
-- [ ] `core/identify.py`: DOI, arXiv and title-search paths with verification
+- [x] `core/identify.py`: DOI, arXiv and title-search paths with verification
 - [ ] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
 - [ ] `core/identify.py`: outage handling and the offline fallback rules
 - [ ] `title_search` privacy switch honoured
@@ -258,3 +258,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_http.py` — 10 passed with fake sessions and no network.
 - Decisions: Keep transport injectable so service and identification tests never make live requests.
 - Next: Implement and verify DOI, arXiv, and title-search identification paths.
+
+### 2026-11-10  M2  Identify papers online
+- Done: Added ordered DOI, arXiv, and title lookup paths with title-in-text verification, author-on-page checks, and one warning per unavailable source per session.
+- Files: `src/papernym/core/identify.py`, `tests/test_identify.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 5 passed with fake source responses.
+- Decisions: Reject a mismatched DOI immediately and continue with the next candidate; keep service failure counts for offline decisions.
+- Next: Add paper-cache and 30-day miss-cache handling.
