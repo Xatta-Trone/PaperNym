@@ -584,6 +584,10 @@ Installed command: `papernym`. Running with no arguments prints help.
 
 Output lines are prefixed: `[ok]`, `[check]`, `[?]`, `[busy]`, `[skip]`, `[warn]`,
 `[preview]`, `[undo]`. Use `->` between names (plain ASCII, safe on Windows consoles).
+On an interactive terminal the prefix is coloured (ok green, check yellow, ? magenta,
+busy blue, skip grey, warn bold red, preview cyan, undo bright blue) and the summary line is
+bold. No colour when output is redirected, when `NO_COLOR` is set, or with `--no-color`;
+the log file is always plain.
 Exit code 0 on success, 1 on failure, 2 on usage error. Every scan ends with a summary
 line, and a scan with no folders configured says so.
 

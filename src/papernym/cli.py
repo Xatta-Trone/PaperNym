@@ -41,22 +41,67 @@ class CliError(Exception):
     """A command failed; the message is printed and the exit code is 1."""
 
 
-class Output:
-    """Prefixed console lines, mirrored to the rotating log file."""
+COLORS = {"ok": "32", "check": "33", "?": "35", "busy": "34", "skip": "90",
+          "warn": "1;31", "preview": "36", "undo": "94"}
 
-    def __init__(self, stream=None, err=None):
+
+def _enable_windows_ansi(stream) -> bool:
+    """Turn on ANSI escape handling for a Windows console; False if impossible."""
+    try:
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = msvcrt.get_osfhandle(stream.fileno())
+        mode = wintypes.DWORD()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        return bool(mode.value & 0x0004 or kernel32.SetConsoleMode(handle, mode.value | 0x0004))
+    except (AttributeError, OSError, ValueError, ImportError):
+        return False
+
+
+def use_color(stream, disabled: bool = False) -> bool:
+    """Colour only an interactive terminal, unless NO_COLOR or --no-color is set."""
+    if disabled or os.environ.get("NO_COLOR") or os.environ.get("TERM") == "dumb":
+        return False
+    try:
+        if not stream.isatty():
+            return False
+    except (AttributeError, ValueError):
+        return False
+    return _enable_windows_ansi(stream) if os.name == "nt" else True
+
+
+class Output:
+    """Prefixed console lines (coloured on a terminal), mirrored to the rotating log file."""
+
+    def __init__(self, stream=None, err=None, *, color: bool | None = None):
         self.stream = stream or sys.stdout
         self.err = err or sys.stderr
+        self.color = use_color(self.stream) if color is None else color
+        self.err_color = use_color(self.err) if color is None else color
         self.tally: dict[str, int] = {}
 
+    @staticmethod
+    def _paint(text: str, code: str, enabled: bool) -> str:
+        return f"\033[{code}m{text}\033[0m" if enabled else text
+
     def line(self, text: str = "", prefix: str | None = None):
-        message = f"[{prefix}] {text}" if prefix else text
-        print(message, file=self.stream, flush=True)
+        if prefix:
+            message = f"[{prefix}] {text}"
+            shown = f"{self._paint(f'[{prefix}]', COLORS.get(prefix, '0'), self.color)} {text}"
+        else:
+            message = shown = text
+            if text.startswith("Summary:"):
+                shown = self._paint(text, "1", self.color)
+        print(shown, file=self.stream, flush=True)
         if prefix:
             log.info(message)
 
     def error(self, text: str):
-        print(f"[warn] {text}", file=self.err, flush=True)
+        print(f"{self._paint('[warn]', COLORS['warn'], self.err_color)} {text}", file=self.err, flush=True)
         log.warning(text)
 
     def event(self, event: dict):
@@ -685,10 +730,14 @@ def build_parser() -> argparse.ArgumentParser:
                "Typical start: papernym add-folder PATH, then papernym scan --dry-run. "
                "To rename the PDFs in the current folder once: papernym scan .")
     parser.add_argument("--version", action="version", version=f"papernym {__version__}")
+    parser.add_argument("--no-color", action="store_true", help="plain output without colours")
+    shared = argparse.ArgumentParser(add_help=False)
+    shared.add_argument("--no-color", action="store_true", default=argparse.SUPPRESS,
+                        help="plain output without colours")
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     def command(name, func, help_text):
-        p = sub.add_parser(name, help=help_text, description=help_text)
+        p = sub.add_parser(name, help=help_text, description=help_text, parents=[shared])
         p.set_defaults(func=func)
         return p
 
@@ -765,7 +814,7 @@ def main(argv: list[str] | None = None, *, stdout=None, stderr=None,
         parser.print_usage(stderr or sys.stderr)
         print("papernym scan: error: --no-subfolders needs a FOLDER", file=stderr or sys.stderr)
         return 2
-    out = Output(stdout, stderr)
+    out = Output(stdout, stderr, color=False if args.no_color else None)
     ctx = Context(args, out, http_get)
     if args.command in ("scan", "watch", "reformat", "undo", "fix"):
         _setup_log(ctx.home)

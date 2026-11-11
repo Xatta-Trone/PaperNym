@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M4 complete; awaiting owner to start M5
 - **Next task:** M5 `papernym-gui` launches from source (`--sandbox`, `--show`, `--debug`)
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 187 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 189 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -429,4 +429,11 @@ Newest entry at the bottom. Use this shape:
 - Files: `src/papernym/cli.py`, `tests/test_cli.py`, `SPEC.md`, `PROGRESS.md`.
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 187 passed (3 new). Live: `scan . --dry-run` then `scan .` in a temp copy of sample_pdfs/ with a temp `PAPERNYM_HOME` named 11/11 files; `show` still listed no watched folders.
 - Decisions: The owner chose to keep plain `papernym` printing help rather than scanning the current folder, so an accidental run never renames anything. Subfolders are included by default, as with `add-folder`. SPEC section 11 updated.
+- Next: Await the owner's instruction to begin M5 (tray app).
+
+### 2026-11-10  M4  Coloured output (owner request)
+- Done: Coloured the output prefix on interactive terminals (ok green, check yellow, ? magenta, busy blue, skip grey, warn bold red, preview cyan, undo bright blue) and made `Summary:` lines bold. ANSI handling is switched on for the Windows console with `ctypes` (`SetConsoleMode`), so no new dependency. Colour is off when output is piped or redirected, when `NO_COLOR` is set, or with `--no-color` (accepted before or after the command). The log file stays plain.
+- Files: `src/papernym/cli.py`, `tests/test_cli.py`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 189 passed (2 new). Manual: dry run, scan, `undo --last 2`, a bad folder and a `--no-color` dry run in a Windows PowerShell terminal tab, with a temp `PAPERNYM_HOME` and a temp copy of sample_pdfs/; no stray escape codes appeared.
+- Note: the owner ran `papernym scan .` from `F:\papernym` with the real settings folder, which renamed the files inside `sample_pdfs/`; `papernym undo` (real settings) restores them.
 - Next: Await the owner's instruction to begin M5 (tray app).

@@ -430,3 +430,51 @@ def test_scan_folder_respects_writer_lock(home, papers, capsys):
     with WriterLock(home):
         code, _, err = run(capsys, "scan", str(papers))
     assert code == 1 and "already running" in err and pdf.exists()
+
+
+class FakeTerminal:
+    def __init__(self):
+        self.parts = []
+
+    def write(self, text):
+        self.parts.append(text)
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return True
+
+    @property
+    def text(self):
+        return "".join(self.parts)
+
+
+def test_colored_prefixes_on_terminal(home, papers, capsys):
+    from papernym.cli import Output
+
+    term = FakeTerminal()
+    out = Output(term, term, color=True)
+    out.line("a.pdf -> b.pdf", "ok")
+    out.line("Summary: 1 PDFs, 1 named")
+    out.error("broken")
+    assert "\033[32m[ok]\033[0m a.pdf -> b.pdf" in term.text
+    assert "\033[1mSummary: 1 PDFs, 1 named\033[0m" in term.text
+    assert "\033[1;31m[warn]\033[0m broken" in term.text
+
+
+def test_color_disabled_by_pipe_no_color_and_flag(home, papers, capsys, monkeypatch):
+    from papernym.cli import use_color
+
+    assert not use_color(FakeTerminal(), disabled=True)
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert not use_color(FakeTerminal())
+    monkeypatch.delenv("NO_COLOR")
+    assert run(capsys, "show", "--no-color")[0] == 0
+    assert run(capsys, "scan", "--no-color", "--dry-run")[0] == 0
+    code, out, err = run(capsys, "--no-color", "show")
+    assert code == 0 and "\033[" not in out
+    paper_pdf(papers / "download.pdf")
+    code, out, _ = run(capsys, "scan", str(papers))  # captured output is not a terminal
+    assert code == 0 and "\033[" not in out and "[ok] download.pdf" in out
+    assert "\033[" not in (home / "logs" / "papernym.log").read_text(encoding="utf-8")
