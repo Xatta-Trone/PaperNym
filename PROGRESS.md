@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** reformat, including `include_manual`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 9 passed
+- **Next task:** undo by batch and last N
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 11 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -57,7 +57,7 @@ Rules:
 - [x] Exclude list
 - [x] Scan with progress events; prune
 - [x] Dry run (scan and reformat)
-- [ ] Reformat, including `include_manual`
+- [x] Reformat, including `include_manual`
 - [ ] Undo by batch and by last N
 - [ ] Manual fix (by DOI, by edited fields) and refresh
 - [ ] `core/watcher.py`: events, queue, start-up scan
@@ -347,3 +347,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 9 passed.
 - Decisions: Identification can read the cache in preview mode while suppressing cache writes; previews reserve names so two files never show one target.
 - Next: Complete saved-metadata reformatting and the manual-name option.
+
+### 2026-11-10  M3  Reformat saved papers
+- Done: Applied current naming settings to saved paper records, skipped hand-renamed files unless included, and added a one-time online-year refresh for older records.
+- Files: `src/papernym/core/engine.py`, `src/papernym/core/identify.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 11 passed.
+- Decisions: Refresh a missing online year when the online year mode is requested; track that attempt in SQLite `meta` to avoid repeat lookups.
+- Next: Add safe undo by batch and by last N history rows.

@@ -200,20 +200,21 @@ class Identifier:
                                "message": f"{source} unavailable: {exc}"})
             return None
 
-    def identify_online(self, path: str | Path, info: dict) -> tuple[PaperMatch | None, LookupStats]:
+    def identify_online(self, path: str | Path, info: dict,
+                        *, refresh: bool = False) -> tuple[PaperMatch | None, LookupStats]:
         path = Path(path)
         stats = LookupStats()
         meta_dois = [doi.lower() for doi in info.get("md_dois", [])]
         candidates = list(dict.fromkeys(meta_dois + find_dois(info.get("text", ""))))[:6]
         for doi in candidates:
             ident = "doi:" + doi
-            cached = self._cached(ident)
+            cached = None if refresh else self._cached(ident)
             if cached:
                 trusted = len(info.get("text", "")) < 200 and doi in meta_dois
                 if trusted or title_in_text(cached.meta["title"], info.get("text", "")):
                     return cached, stats
                 continue
-            if self._miss_fresh(ident):
+            if not refresh and self._miss_fresh(ident):
                 stats.reached += 1
                 continue
             before = (stats.reached, stats.failed)
@@ -230,10 +231,10 @@ class Identifier:
         if arxiv_match:
             aid = arxiv_match.group(1)
             ident = "arxiv:" + aid
-            cached = self._cached(ident)
+            cached = None if refresh else self._cached(ident)
             if cached and title_in_text(cached.meta["title"], info.get("text", "")):
                 return cached, stats
-            if self._miss_fresh(ident):
+            if not refresh and self._miss_fresh(ident):
                 stats.reached += 1
             else:
                 before = (stats.reached, stats.failed)
@@ -247,10 +248,10 @@ class Identifier:
             queries = dict.fromkeys(title for title in (info.get("big_title"), info.get("md_title")) if title)
             for query in queries:
                 ident = "title:" + normal_title(query)
-                cached = self._cached(ident)
+                cached = None if refresh else self._cached(ident)
                 if cached and title_hit_ok(cached.meta, query, info):
                     return cached, stats
-                if self._miss_fresh(ident):
+                if not refresh and self._miss_fresh(ident):
                     stats.reached += 1
                     continue
                 before = (stats.reached, stats.failed)

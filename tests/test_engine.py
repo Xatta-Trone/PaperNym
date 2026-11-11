@@ -17,10 +17,17 @@ class FakeIdentifier:
     def __init__(self, outcome):
         self.outcome = outcome
         self.calls = 0
+        self.refresh_calls = 0
+        self.refresh_match = None
 
     def identify(self, _path, _info):
         self.calls += 1
         return self.outcome
+
+    def identify_online(self, _path, _info, *, refresh=False):
+        assert refresh
+        self.refresh_calls += 1
+        return self.refresh_match, LookupStats()
 
 
 def outcome(status="ok", meta=None):
@@ -222,3 +229,41 @@ def test_dry_reformat_uses_saved_metadata_without_writes(tmp_path):
         assert db.get_file(named) is not None
         assert len(db.history()) == before
         assert events[-1]["new_path"].endswith("Smith_2025.pdf")
+
+
+def test_reformat_respects_manual_name_unless_included(tmp_path):
+    path = tmp_path / "download.pdf"
+    path.write_bytes(b"PDF")
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, FakeIdentifier(outcome()))
+        named = worker.process(path).path
+        manual = tmp_path / "My own title.pdf"
+        named.rename(manual)
+        worker.process(manual)
+        worker.config["format"] = "{author}_{year}"
+        assert worker.reformat()["skipped"] == 1
+        assert manual.exists()
+        counts = worker.reformat(include_manual=True)
+        assert counts["ok"] == 1
+        new = tmp_path / "Smith_2025.pdf"
+        assert new.exists() and not manual.exists()
+        assert db.get_file(new)["given_name"] == new.name
+        assert db.history()[0]["source"] == "reformat"
+
+
+def test_reformat_old_record_looks_up_online_year_once(tmp_path):
+    path = tmp_path / "download.pdf"
+    path.write_bytes(b"PDF")
+    legacy = dict(META, year_online=None)
+    fake = FakeIdentifier(outcome(meta=legacy))
+    fake.refresh_match = PaperMatch("doi:10.1/test", dict(META))
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, fake)
+        worker.process(path)
+        worker.config["year"] = "online"
+        worker.config["format"] = "{author}_{year}"
+        assert worker.reformat()["ok"] == 1
+        assert (tmp_path / "Smith_2024.pdf").exists()
+        assert worker.reformat()["ok"] == 1
+        assert fake.refresh_calls == 1
+        assert db.get_paper("doi:10.1/test")["year_online"] == 2024

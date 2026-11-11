@@ -294,6 +294,29 @@ class Engine:
                 counts["skipped"] += 1
                 continue
             match = self._paper_match(row["paper_id"])
+            if self.config.get("year") == "online" and match.meta.get("year_online") is None:
+                marker = "online_lookup:" + row["paper_id"]
+                attempted = self.db.conn.execute("SELECT 1 FROM meta WHERE key=?", (marker,)).fetchone()
+                if not attempted:
+                    fresh = None
+                    if hasattr(self.identifier, "identify_online"):
+                        old_read_only = getattr(self.identifier, "read_only", None)
+                        if dry_run and old_read_only is not None:
+                            self.identifier.read_only = True
+                        try:
+                            fresh, _ = self.identifier.identify_online(path, self.read_pdf(path), refresh=True)
+                        except PdfReadError:
+                            pass
+                        finally:
+                            if dry_run and old_read_only is not None:
+                                self.identifier.read_only = old_read_only
+                    if fresh:
+                        match = PaperMatch(row["paper_id"], fresh.meta, match.status)
+                        if not dry_run:
+                            self._put_paper(match)
+                    if not dry_run:
+                        with self.db.conn:
+                            self.db.conn.execute("INSERT OR IGNORE INTO meta VALUES (?,?)", (marker, self._stamp()))
             result = self._rename(path, row["fingerprint"], match, row["attempts"], batch,
                                   source="reformat", given_name=row["given_name"], dry_run=dry_run)
             counts[result.status] = counts.get(result.status, 0) + 1
