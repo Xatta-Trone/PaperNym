@@ -17,7 +17,7 @@ from .naming import PRESETS, TemplateError, validate_template
 log = logging.getLogger("papernym")
 
 # Settings that no longer exist; old config.json files may still have them (dropped on load).
-RETIRED = {"title_limit"}  # titles are always as long as the file-name budget allows
+RETIRED = {"title_limit", "max_title_chars"}  # titles are always as long as the file-name budget allows (max_title_chars: the prototype's name)
 
 DEFAULTS = {
     "folders": [],

@@ -130,3 +130,19 @@ def test_bad_prototype_data_is_not_backed_up(tmp_path):
         Database(tmp_path / "PaperNym")
     assert (old / "state.json").exists()
     assert not (old / "state.json.bak").exists()
+
+
+def test_prototype_config_with_title_length_migrates(tmp_path):
+    old = tmp_path / "PaperRenamer"
+    old.mkdir()
+    folder = str(tmp_path / "papers")
+    (old / "config.json").write_text(json.dumps({
+        "folders": [{"path": folder, "recursive": True}], "format": "{year}_{author}_{title}",
+        "word_sep": "_", "max_title_chars": 90, "openalex_key": "", "s2_key": "", "email": ""}),
+        encoding="utf-8")
+    home = tmp_path / "PaperNym"
+    with Database(home):
+        pass
+    saved = json.loads((home / "config.json").read_text())
+    assert "max_title_chars" not in saved and saved["folders"][0]["path"] == folder
+    assert (old / "config.json.bak").exists()

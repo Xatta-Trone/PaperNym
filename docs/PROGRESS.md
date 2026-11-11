@@ -497,3 +497,8 @@ Newest entry at the bottom. Use this shape:
 - Done: owner decided to release without code signing. The workflow's signing step is removed; `scripts/build_windows.py` keeps its optional `SIGN_PFX` hook for later. The installer no longer offers "Add to PATH" as an option: every install ships `papernym-cli.exe` with the tray app, puts `{app}\bin` (`papernym.cmd`) on the user PATH, and adds App Paths entries for `PaperNym.exe` and `papernym-cli.exe`; the uninstaller removes all of them. `tests/test_build_script.py` checks the installer script for this.
 - Files: `packaging/papernym.iss`, `.github/workflows/windows-release.yml`, `tests/test_build_script.py`, `docs/BUILDING.md`, `docs/SPEC.md`, `docs/PROGRESS.md`.
 
+
+### 2026-11-11  Fix  Prototype settings with a title length stopped the app from starting
+- Problem: on the owner's machine PaperNym refused to start with "cannot migrate prototype data ... unknown config keys: max_title_chars". The prototype's `config.json` stores the title length as `max_title_chars`; after the title length was removed, only the newer name `title_limit` was dropped on load.
+- Fix: `max_title_chars` joins `title_limit` in `config.RETIRED`, so it is dropped wherever a config is read, including the one-time prototype import. The import runs in one transaction and validates the config first, so the failed start left nothing half-imported.
+- Tests: `tests/test_db.py::test_prototype_config_with_title_length_migrates`; full run 241 passed.
