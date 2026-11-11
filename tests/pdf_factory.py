@@ -1,6 +1,11 @@
 """Generate small text PDFs for offline tests using only the standard library."""
 
 
+def _escape(text):
+    """Escape a PDF string literal (outside an f-string, for Python 3.10 and 3.11)."""
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
 def make_pdf(path, pages, metadata=None, xmp=""):
     """pages: list of pages; each page has (text, size, x, y, rotated)."""
     metadata = metadata or {}
@@ -13,7 +18,7 @@ def make_pdf(path, pages, metadata=None, xmp=""):
         stream = b"\n".join(
             (f"BT /F1 {size} Tf " +
              (f"0 1 -1 0 {x} {y} Tm " if rotated else f"1 0 0 1 {x} {y} Tm ") +
-             f"({text.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')}) Tj ET")
+             "(" + _escape(text) + ") Tj ET")
             .encode("latin-1")
             for text, size, x, y, rotated in lines
         )
