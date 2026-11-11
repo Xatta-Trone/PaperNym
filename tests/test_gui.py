@@ -5,6 +5,7 @@ import sys
 import time
 
 import pytest
+import shiboken6
 
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -27,6 +28,26 @@ from .test_watcher import FakeObserver  # noqa: E402
 @pytest.fixture(scope="module")
 def qapp():
     return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture
+def wizard(qapp):
+    """Build WelcomeWizards that are deleted at the end of the test.
+
+    A parentless top-level widget left for Python to collect at interpreter exit is destroyed
+    after Qt has begun shutting down, and Qt aborts the process (exit 0xC0000409) even though
+    every test passed.
+    """
+    made = []
+
+    def build(*args, **kwargs):
+        made.append(WelcomeWizard(*args, **kwargs))
+        return made[-1]
+
+    yield build
+    for widget in made:
+        widget.close()
+        shiboken6.delete(widget)
 
 
 def wait(qapp, condition, timeout=15):
@@ -259,8 +280,8 @@ def test_sandbox_copies_samples(tmp_path, monkeypatch):
     assert (samples / "one.pdf").exists()
 
 
-def test_welcome_wizard_preview(qapp, tmp_path):
-    wizard = WelcomeWizard([str(tmp_path)])
+def test_welcome_wizard_preview(wizard, tmp_path):
+    wizard = wizard([str(tmp_path)])
     assert wizard.folders() == [str(tmp_path)]
     wizard.preset.setCurrentIndex(wizard.preset.findData("citekey"))
     assert wizard.chosen_preset() == "citekey"
@@ -366,9 +387,9 @@ def test_sources_labels_have_no_literal_ampersand(qapp, make_ctl):
     assert labels[sources.s2].text() == "Semantic &Scholar key"
 
 
-def test_welcome_wizard_start_at_login_choice(qapp):
-    assert WelcomeWizard([]).start_at_login() is True
-    assert WelcomeWizard([], allow_login=False).start_at_login() is False
+def test_welcome_wizard_start_at_login_choice(wizard):
+    assert wizard([]).start_at_login() is True
+    assert wizard([], allow_login=False).start_at_login() is False
 
 
 def test_activity_buttons_open_reveal_refresh_and_undo(qapp, make_ctl, tmp_path, monkeypatch):
@@ -577,6 +598,6 @@ def test_installer_start_at_login_choice_is_adopted_once(qapp, make_ctl, monkeyp
     assert ctl.config["start_at_login"] is False
 
 
-def test_welcome_wizard_login_default_from_installer(qapp):
-    assert WelcomeWizard([], login_default=False).start_at_login() is False
+def test_welcome_wizard_login_default_from_installer(wizard):
+    assert wizard([], login_default=False).start_at_login() is False
 

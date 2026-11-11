@@ -522,3 +522,9 @@ Newest entry at the bottom. Use this shape:
 
 ### 2026-11-11  Release  Version 0.1.1
 - Done: owner chose to release the fix as `v0.1.1` rather than move the `v0.1.0` tag (which points at the commit whose release run failed and produced no release). `__version__` is 0.1.1. `tests/test_smoke.py` and `tests/test_http.py` read the version from the package instead of hard-coding it.
+
+### 2026-11-11  Release  v0.1.1 run: tests passed but the process crashed at exit; version 0.1.2
+- Problem: the `v0.1.1` workflow printed "243 passed" and still failed with exit code 1. Locally the same run exits with `0xC0000409` (a Qt abort during interpreter shutdown); earlier runs never checked the exit code. Cause: three tests built a parentless `WelcomeWizard` and left it for Python to collect at exit, after Qt had started tearing down.
+- Fix: a `wizard` fixture in `tests/test_gui.py` builds the wizards and deletes them (`shiboken6.delete`) at the end of each test. In the app the wizard always has the main window as parent, so the app itself is not affected.
+- Tests: full suite exit code 0 in PowerShell, three runs (243 passed each); each wizard test alone also exits 0.
+- Version 0.1.2 (new tag; `v0.1.0` and `v0.1.1` are left as they are, neither produced a release).
