@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/db.py` schema, WAL, queries, backup, corruption handling
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 15 passed
+- **Next task:** `core/db.py` migration from prototype files
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 4 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -30,7 +30,7 @@ Rules:
 
 ### M1 Core, part 1
 - [x] `core/config.py`: load, save (atomic), defaults, validation, env overrides
-- [ ] `core/db.py`: schema, WAL, queries, daily backup, corrupt-database handling
+- [x] `core/db.py`: schema, WAL, queries, daily backup, corrupt-database handling
 - [ ] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
 - [ ] `core/lock.py`: single-writer lock (Windows and Linux)
 - [ ] `core/naming.py`: tokens, field cleaning, non-Latin fallback
@@ -174,3 +174,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 15 passed, with a temporary `PAPERNYM_HOME`.
 - Decisions: Invalid settings raise `ConfigError` rather than silently resetting; API-key overrides are never written to disk.
 - Next: Implement SQLite schema, queries, backup, and corrupt-database handling.
+
+### 2026-11-10  M1  Implement SQLite storage
+- Done: Added the specified schema, WAL and foreign-key settings, basic queries, atomic rename history writes, daily SQLite backup, and corruption recovery or clear failure.
+- Files: `src/papernym/core/db.py`, `tests/test_db.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 4 passed with temporary databases. An initial failure exposed an open backup connection on Windows; fixed and reran successfully.
+- Decisions: Use SQLite's backup API for a consistent backup; refuse an unreadable database when no valid backup exists.
+- Next: Import the prototype state, history, and config on first run.
