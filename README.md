@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/papernym/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/papernym?color=0B5563"></a>
   <a href="https://github.com/Xatta-Trone/papernym/blob/main/LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0B5563">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-FFB020">
@@ -77,8 +78,7 @@ and gives the file a name you can read, sort and search.
    `%LOCALAPPDATA%\Programs\PaperNym`.
 3. PaperNym opens and walks you through choosing folders and a name format.
 
-> [!NOTE]
-> The installer is not code-signed yet, so Windows SmartScreen may say
+> **Note:** The installer is not code-signed yet, so Windows SmartScreen may say
 > "Windows protected your PC". Choose **More info → Run anyway**. You can check the
 > download against the `.sha256` file published with each release:
 > `certutil -hashfile PaperNym-Setup-<version>.exe SHA256`
@@ -89,18 +89,27 @@ choose **Start PaperNym when I log in** and a desktop shortcut.
 
 Requirements: Windows 10 or 11 (64-bit) and an internet connection for lookups.
 
-### From source (any platform with Python 3.10+)
+### With pip (Python 3.10+)
+
+PaperNym is on [PyPI](https://pypi.org/project/papernym/). [pipx](https://pipx.pypa.io)
+installs it in its own environment and puts the commands on your `PATH`:
 
 ```bash
-git clone https://github.com/Xatta-Trone/papernym.git
-cd papernym
-python -m venv .venv
-.venv\Scripts\activate            # Linux: source .venv/bin/activate
-pip install -e ".[gui]"           # drop [gui] for the command line only
+pipx install "papernym[gui]"      # command line and tray app
+pipx install papernym             # command line only
 ```
 
-This gives you `papernym` (command line) and `papernym-gui` (tray app). A PyPI package and
-tested Linux support are on the [roadmap](#roadmap).
+Or with pip, ideally inside a virtual environment:
+
+```bash
+pip install "papernym[gui]"
+```
+
+This gives you `papernym` (command line) and `papernym-gui` (tray app). Upgrade with
+`pipx upgrade papernym` or `pip install -U papernym`.
+
+Windows is the tested platform. The command line is plain Python and should work on Linux
+and macOS too; tested Linux support is on the [roadmap](#roadmap).
 
 ## Getting started
 
@@ -305,9 +314,16 @@ the program, its Start-menu and login entries, and the `PATH` entry. It asks whe
 remove your settings, history and saved keys too (the default is to keep them). Your PDFs
 are never touched.
 
+Installed with pip or pipx: `pipx uninstall papernym` or `pip uninstall papernym`. Settings
+stay in the folder shown by `papernym show`; delete it by hand if you no longer need them.
+
 ## Development
 
 ```bash
+git clone https://github.com/Xatta-Trone/papernym.git
+cd papernym
+python -m venv .venv
+.venv\Scripts\activate                    # Linux and macOS: source .venv/bin/activate
 pip install -e ".[gui,dev]"
 python -m pytest -q
 papernym-gui --sandbox --show --debug     # run the tray app from source
@@ -323,10 +339,18 @@ DOI and the output of `papernym compare` on that file, if you can.
 
 ## Roadmap
 
-- [x] Windows tray app, command line and installer
-- [ ] Code-signed Windows releases
-- [ ] PyPI package (`pip install papernym` / `pipx install papernym`)
-- [ ] Tested Linux support for the tray app and the command line
+Done:
+
+- Windows tray app, command line and installer
+- PyPI package (`pip install papernym` / `pipx install papernym`)
+
+Planned:
+
+- Code-signed Windows releases
+- Tested Linux support for the tray app and the command line
+
+What changed in each version is in the
+[changelog](https://github.com/Xatta-Trone/papernym/blob/main/CHANGELOG.md).
 
 ## Licence and credits
 
