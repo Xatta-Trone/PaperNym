@@ -16,7 +16,7 @@ Rules:
 - **Current milestone:** M6 built locally (exe, installer, release workflow); M5 manual checklist still open
 - **Next task:** Owner: M5 checklist, push the repo to `Xatta-Trone/papernym`, clean-account install test, then tag `v0.1.0` for the first (unsigned) release
 - **Pending, later (owner, 2026-11-11):** M7 PyPI and M8 Linux; not started
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 241 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 243 passed
 - **Open questions for the owner:** none (releases go out unsigned; see docs/BUILDING.md)
 
 ## Milestones
