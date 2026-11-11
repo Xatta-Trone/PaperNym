@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M0 complete; awaiting approval to start M1
-- **Next task:** M1 `core/config.py` (after owner says to proceed)
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 1 passed
+- **Current milestone:** M1
+- **Next task:** `core/db.py` schema, WAL, queries, backup, corruption handling
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 15 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -29,7 +29,7 @@ Rules:
 - [x] Editable install into `.venv`; `pytest` passes with one placeholder test
 
 ### M1 Core, part 1
-- [ ] `core/config.py`: load, save (atomic), defaults, validation, env overrides
+- [x] `core/config.py`: load, save (atomic), defaults, validation, env overrides
 - [ ] `core/db.py`: schema, WAL, queries, daily backup, corrupt-database handling
 - [ ] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
 - [ ] `core/lock.py`: single-writer lock (Windows and Linux)
@@ -167,3 +167,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-m0-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — pass, 1 test.
 - Decisions: Use a temporary `PAPERNYM_HOME` for the test run; the smoke test imports the installed package without network or sample PDFs.
 - Next: Await the owner's instruction before starting M1 `core/config.py`.
+
+### 2026-11-10  M1  Implement configuration
+- Done: Added defaults, settings-path selection, validation, atomic JSON writes, and in-memory API-key environment overrides.
+- Files: `src/papernym/core/config.py`, `tests/test_config.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 15 passed, with a temporary `PAPERNYM_HOME`.
+- Decisions: Invalid settings raise `ConfigError` rather than silently resetting; API-key overrides are never written to disk.
+- Next: Implement SQLite schema, queries, backup, and corrupt-database handling.
