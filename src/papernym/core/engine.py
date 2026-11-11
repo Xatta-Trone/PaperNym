@@ -106,7 +106,8 @@ class Engine:
                            suffix="_CHECK" if match.status == "check" else "")
 
     def _rename(self, path: Path, fp: str, match: PaperMatch, attempts: int,
-                batch: str | None = None, source: str | None = None) -> ProcessResult:
+                batch: str | None = None, source: str | None = None,
+                given_name: str | None = None) -> ProcessResult:
         self._put_paper(match)
         target = self._target(path, fp, match)
         if target == path:
@@ -117,7 +118,7 @@ class Engine:
         try:
             path.rename(target)
         except OSError as exc:
-            self.db.put_file(self._row(path, fp, "pending", match.paper_id, None, attempts))
+            self.db.put_file(self._row(path, fp, "pending", match.paper_id, given_name, attempts))
             self._event("busy", path, f"rename failed: {exc}; will retry", source=match.meta["source"])
             return ProcessResult("pending", path, str(exc))
         new_row = self._row(target, fp, match.status, match.paper_id, target.name, attempts)
@@ -151,13 +152,32 @@ class Engine:
         if prior and prior["fingerprint"] != fp and prior["status"] != "ok":
             self.db.delete_file(path)
             prior = None
+        twin = None
+        if prior is None:
+            twins = self.db.files_by_fingerprint(fp)
+            stale = next((row for row in twins if not Path(row["display_path"]).exists()), None)
+            if stale:
+                moved = dict(stale)
+                moved.update(self._row(path, fp, stale["status"], stale["paper_id"],
+                                       stale["given_name"], stale["attempts"]))
+                self.db.relocate_file(stale["display_path"], moved)
+                prior = self.db.get_file(path)
+                if prior["status"] == "ok":
+                    return ProcessResult("skipped", path, "moved or hand-renamed file")
+            else:
+                twin = next((row for row in twins if row["paper_id"]), None)
+        if prior and prior["given_name"] and prior["given_name"] != path.name:
+            return ProcessResult("skipped", path, "hand-renamed file")
         if prior and not retry:
             return ProcessResult("skipped", path, "awaiting retry pass")
         if prior and prior["attempts"] >= 5 and prior["status"] == "unknown":
             return ProcessResult("skipped", path, "lookup attempts exhausted")
         if prior and prior["status"] == "pending" and prior["paper_id"]:
             return self._rename(path, fp, self._paper_match(prior["paper_id"]),
-                                prior["attempts"], batch)
+                                prior["attempts"], batch, given_name=prior["given_name"])
+        if twin:
+            return self._rename(path, fp, self._paper_match(twin["paper_id"]),
+                                0, batch)
         try:
             info = self.read_pdf(path)
         except PdfReadError as exc:
@@ -170,4 +190,5 @@ class Engine:
             self.db.put_file(self._row(path, fp, "unknown", attempts=attempts))
             self._event("unidentified", path, "paper not identified")
             return ProcessResult("unknown", path, "paper not identified")
-        return self._rename(path, fp, outcome.match, attempts, batch)
+        return self._rename(path, fp, outcome.match, attempts, batch,
+                            given_name=prior["given_name"] if prior else None)

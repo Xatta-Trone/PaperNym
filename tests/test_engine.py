@@ -61,7 +61,7 @@ def test_check_unknown_and_unreadable_statuses(tmp_path):
         assert check.status == "check"
         assert check.path.name.endswith("_CHECK.pdf")
         unknown_path = tmp_path / "unknown.pdf"
-        unknown_path.write_bytes(b"PDF")
+        unknown_path.write_bytes(b"OTHER")
         unknown = engine(db, FakeIdentifier(outcome("unknown"))).process(unknown_path)
         assert unknown.status == "unknown"
         assert unknown_path.exists()
@@ -93,4 +93,42 @@ def test_locked_rename_becomes_pending_and_retries_without_lookup(tmp_path, monk
             assert worker.process(path).status == "pending"
         assert db.get_file(path)["status"] == "pending"
         assert worker.process(path, retry=True).status == "ok"
+        assert fake.calls == 1
+
+
+def test_hand_rename_and_move_are_respected(tmp_path):
+    original = tmp_path / "download.pdf"
+    original.write_bytes(b"PDF")
+    fake = FakeIdentifier(outcome())
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, fake)
+        named = worker.process(original).path
+        moved_dir = tmp_path / "other"
+        moved_dir.mkdir()
+        moved = moved_dir / "My chosen name.pdf"
+        named.rename(moved)
+        assert worker.process(moved, retry=True).status == "skipped"
+        row = db.get_file(moved)
+        assert row["given_name"] == named.name
+        assert db.get_file(named) is None
+        assert fake.calls == 1
+
+
+def test_annotated_file_and_copy_need_no_new_lookup(tmp_path):
+    original = tmp_path / "download.pdf"
+    original.write_bytes(b"PDF")
+    fake = FakeIdentifier(outcome())
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, fake)
+        named = worker.process(original).path
+        old_fp = db.get_file(named)["fingerprint"]
+        named.write_bytes(b"PDF plus annotation")
+        assert worker.process(named).status == "skipped"
+        assert db.get_file(named)["fingerprint"] != old_fp
+        assert fake.calls == 1
+        copy = tmp_path / "copy.pdf"
+        copy.write_bytes(named.read_bytes())
+        result = worker.process(copy)
+        assert result.status == "ok"
+        assert result.path.name.endswith("_dup2.pdf")
         assert fake.calls == 1

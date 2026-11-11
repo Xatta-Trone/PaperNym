@@ -161,6 +161,17 @@ class Database:
         with self.conn:
             self.conn.execute("DELETE FROM files WHERE path=?", (path_key(path),))
 
+    def relocate_file(self, old_path: str | Path, new_file: dict) -> None:
+        """Update a user's moved/renamed file path without a rename-history entry."""
+        columns = ("path", "display_path", "fingerprint", "size", "mtime", "status",
+                   "given_name", "paper_id", "attempts", "updated_at")
+        new_file = dict(new_file)
+        new_file["path"] = path_key(new_file["path"])
+        with self.conn:
+            self.conn.execute("DELETE FROM files WHERE path=?", (path_key(old_path),))
+            self.conn.execute("INSERT INTO files VALUES (?,?,?,?,?,?,?,?,?,?)",
+                              tuple(new_file.get(key) for key in columns))
+
     def record_rename(self, old_path: str | Path, new_file: dict, source: str,
                       status: str, batch: str, when: str) -> None:
         """Move a file row and write its history in the same transaction."""

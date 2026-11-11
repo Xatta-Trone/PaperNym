@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** hand-renamed, moved, annotated, and copied files
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 3 passed
+- **Next task:** exclude list
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 5 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -53,7 +53,7 @@ Rules:
 
 ### M3 Core, part 3
 - [x] `core/engine.py`: per-file logic and all five statuses
-- [ ] Hand-renamed, moved, annotated and copied files
+- [x] Hand-renamed, moved, annotated and copied files
 - [ ] Exclude list
 - [ ] Scan with progress events; prune
 - [ ] Dry run (scan and reformat)
@@ -319,3 +319,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 3 passed after correcting a test event-list helper.
 - Decisions: Keep PDF extraction and identification injectable for offline tests; keep failed renames as `pending` with metadata for lookup-free retry.
 - Next: Handle hand renames, moves, annotations, and copies.
+
+### 2026-11-10  M3  Respect file history and copies
+- Done: Recognized moved and hand-renamed files by fingerprint, refreshed annotation fingerprints without lookup, and reused saved metadata for copies with `_dupN` names.
+- Files: `src/papernym/core/engine.py`, `src/papernym/core/db.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 5 passed; a test fixture initially used identical bytes for two distinct cases and was corrected.
+- Decisions: Preserve `given_name` when a file moves so manual names remain protected; use an atomic database path relocation without adding a tool-rename history entry.
+- Next: Apply exclude patterns before reading files.
