@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M0
-- **Next task:** create `pyproject.toml`
-- **Last test run:** `git diff --cached --summary` — four exact renames (pass)
+- **Next task:** create the `src/papernym/` package skeleton and `tests/`
+- **Last test run:** `.venv\Scripts\python.exe -c "...tomllib assertions..."` — pass
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -24,7 +24,7 @@ Rules:
 - [x] Create `.venv` in the project root; confirm `python --version` is 3.10+
 - [x] `git init`; `.gitignore` (`.venv`, `sample_pdfs/`, `__pycache__`, `build`, `dist`, `*.egg-info`)
 - [x] Move `paper_renamer.py`, `test_apis.py`, `compare_sources.py`, `compare_pdf_libs.py` into `prototype/` (read-only reference); leave `pdf_metadata.py` alone
-- [ ] `pyproject.toml` (name `papernym`, deps `pypdfium2`, `requests`, `watchdog`; extra `gui = ["PySide6"]`; dev extra `pytest`)
+- [x] `pyproject.toml` (name `papernym`, deps `pypdfium2`, `requests`, `watchdog`; extra `gui = ["PySide6"]`; dev extra `pytest`)
 - [ ] Package skeleton `src/papernym/` per SPEC section 3; `tests/`
 - [ ] Editable install into `.venv`; `pytest` passes with one placeholder test
 
@@ -146,3 +146,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `git diff --cached --summary` — pass; git reports four 100% renames. `git diff -- pdf_metadata.py` — empty.
 - Decisions: Keep prototype code solely as reference, as required by the specification.
 - Next: Add `pyproject.toml` with the specified dependencies and entry points.
+
+### 2026-11-10  M0  Add packaging metadata
+- Done: Added a setuptools `src/` package configuration, specified runtime and optional dependencies, and declared CLI and GUI entry points.
+- Files: `pyproject.toml`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -c "...tomllib assertions..."` — pass; parsed name, runtime dependencies, and extras.
+- Decisions: Use setuptools, one of the two build backends allowed by SPEC section 2. Read the version from `papernym.__version__` as the single source.
+- Next: Create the package skeleton and tests directory.
