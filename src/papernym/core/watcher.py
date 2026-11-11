@@ -48,6 +48,7 @@ class Watcher:
         self._unavailable = set()
         self._paused = engine.config.get("paused", False)
         self._bad_config_stamp = None
+        self.held: set[str] = set()  # folder keys added but waiting for the user's preview
 
     def _stamp(self):
         try:
@@ -84,7 +85,7 @@ class Watcher:
         except queue.Empty:
             return False
         try:
-            if not self.engine.config.get("paused", False):
+            if not self.engine.config.get("paused", False) and not self._is_held(path):
                 watched = any(self.engine._inside(path, folder["path"], folder.get("recursive", True))
                               for folder in self.engine.config.get("folders", []))
                 if watched:
@@ -113,6 +114,13 @@ class Watcher:
             self.watches.clear()
             self._started = False
         self._lock.release()
+
+    def _is_held(self, path) -> bool:
+        return any(self.engine._inside(path, folder["path"], folder.get("recursive", True))
+                   for folder in self.engine.config.get("folders", []) if path_key(folder["path"]) in self.held)
+
+    def _free(self, folders: list[dict]) -> list[dict]:
+        return [folder for folder in folders if path_key(folder["path"]) not in self.held]
 
     def reconcile(self) -> list[dict]:
         """Detach missing watches and attach reachable new or returned folders."""
@@ -174,13 +182,13 @@ class Watcher:
             self._paused = self.engine.config.get("paused", False)
             if not self.engine.config.get("paused", False):
                 if was_paused:
-                    self.engine.scan()
-                elif attached:
-                    self.engine.scan(attached)
+                    self.engine.scan(self._free(self.engine.config.get("folders", [])))
+                elif self._free(attached):
+                    self.engine.scan(self._free(attached))
         if now >= self._next_retry:
             self._next_retry = now + 30 * 60
             if not self.engine.config.get("paused", False):
                 for row in self.engine.db.files_by_status("check", "unknown", "pending"):
                     path = Path(row["display_path"])
-                    if path.is_file():
+                    if path.is_file() and not self._is_held(path):
                         self.engine.process(path, retry=True, batch=uuid.uuid4().hex)

@@ -24,6 +24,7 @@ from ..core.logsetup import setup_file_log
 from ..core.naming import PRESETS
 from .common import app_icon, short, show_in_folder, tray_icon
 from .dialogs import PreviewDialog, WelcomeWizard
+from . import theme
 from .window import MainWindow
 from .worker import Worker
 
@@ -67,6 +68,12 @@ class Controller(QObject):
         self._animation = QTimer(self, interval=600, timeout=self._animate)
         self._refresh = QTimer(self, singleShot=True, interval=300, timeout=self._refresh_lists)
         self._toast_timer = QTimer(self, singleShot=True, interval=TOAST_QUIET_MS, timeout=self._flush_toast)
+        self._theme = None
+        self.apply_theme()
+        hints = QApplication.styleHints()
+        if hasattr(hints, "colorSchemeChanged"):
+            hints.colorSchemeChanged.connect(lambda _: self.apply_theme(force=True))
+        self.config_changed.connect(lambda _: self.apply_theme())
         self.window = MainWindow(self)
         self._build_tray()
         self.worker.event.connect(self.on_event)
@@ -273,6 +280,14 @@ class Controller(QObject):
         self.folder_states = states
         self.update_tray()
 
+    def apply_theme(self, force: bool = False):
+        mode = self.config.get("theme", "system")
+        if force and mode != "system":
+            return
+        if mode != self._theme or force:
+            self._theme = mode
+            theme.apply(QApplication.instance(), mode)
+
     def reload_config(self):
         self.worker.call(lambda w: w.stored_config(), self._set_config)
 
@@ -332,24 +347,57 @@ class Controller(QObject):
                          self._confirm_folder, self.error)
 
     def _confirm_folder(self, info: dict):
+        """Nothing is read or looked up until the user adds the folder here."""
         box = QMessageBox(self.window)
         box.setWindowTitle("Add folder")
         text = f"{info['path']}\n\nThis folder contains {info['count']} PDF(s)."
         if info["warnings"]:
             text += "\n\nWarning: " + " ".join(info["warnings"])
+        text += ("\n\nAdd: PaperNym starts watching and renaming here now.\n"
+                 "Add and preview: the folder is added and waits; you see the planned names "
+                 "first and choose which files to rename.")
         box.setText(text)
-        preview = box.addButton("&Preview first", QMessageBox.AcceptRole)
-        now = box.addButton("&Add and rename now", QMessageBox.YesRole)
+        now = box.addButton("&Add", QMessageBox.YesRole)
+        preview = box.addButton("Add and &preview", QMessageBox.AcceptRole)
         box.addButton(QMessageBox.Cancel)
-        box.setDefaultButton(preview)
+        box.setDefaultButton(now)
         box.exec()
         if box.clickedButton() is now:
-            self.save_settings(info["config"], lambda _: self.status(f"Watching {info['path']}"))
+            self.save_settings(info["config"], lambda _: self.status(f"Added and watching {info['path']}"))
         elif box.clickedButton() is preview:
-            folder = info["config"]["folders"][-1]
-            self.status("Preparing preview...")
-            self.worker.call(lambda w: w.preview_folders([folder], info["config"]),
-                             lambda items: self._preview_then_apply(items, info["config"]), self.error)
+            path = info["config"]["folders"][-1]["path"]
+            self.status(f"Added {path}; looking up {info['count']} PDF(s) for the preview "
+                        "(nothing is renamed yet)...")
+            self.worker.call(lambda w: w.add_held_folder(info["config"]), self._set_config, self.error)
+            self.worker.call(lambda w: w.preview_held_folder(path),
+                             lambda items: self._preview_added_folder(items, path), self.error)
+
+    def _preview_added_folder(self, items: list[dict], path: str):
+        self.window.folders.refresh_states()
+        intro = ("The folder is added but nothing has been renamed. Ticked files will be renamed; "
+                 "unticked files keep their names and PaperNym will leave them alone. "
+                 "Closing this window removes the folder again.")
+        if not items:
+            intro = "No files need renaming here. New PDFs will be renamed as they arrive."
+        dialog = PreviewDialog("Preview renames", intro, items, accept_text="&Rename ticked files",
+                               parent=self.window)
+        if dialog.exec():
+            rename, keep = dialog.selected(), dialog.unselected()
+
+            def apply(w):
+                counts = w.apply_selection(rename, keep, None)
+                w.release_folder(path)
+                return counts
+
+            self.worker.call(apply, lambda counts: (
+                self.window.folders.refresh_states(),
+                self.status(f"Watching {path}. Renamed {counts['renamed']}, kept {counts['kept']}.")),
+                self.error)
+        else:
+            self.worker.call(lambda w: w.drop_folder(path), lambda saved: (
+                self._set_config(saved), self.window.folders.refresh_states(),
+                self.status(f"Preview closed; {path} was not added and nothing was renamed.")),
+                self.error)
 
     def _preview_then_apply(self, items: list[dict], config: dict, *, paused_on_cancel: bool = False):
         intro = ("Nothing has been renamed yet. Ticked files will be renamed; unticked files keep "
@@ -509,6 +557,9 @@ def _attach_console():
         pass
 
 
+SANDBOX_SERVER = "PaperNym-sandbox-" + hashlib.sha1(os.path.expanduser("~").encode("utf-8")).hexdigest()[:8]
+
+
 def server_name(home: Path) -> str:
     key = os.path.normcase(os.path.abspath(home)).encode("utf-8")
     return "PaperNym-" + hashlib.sha1(key).hexdigest()[:16]
@@ -550,16 +601,19 @@ def main(argv: list[str] | None = None) -> int:
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(app_icon())
     welcome = []
+    # One sandbox at a time: each sandbox has a new temporary settings folder, so it gets a
+    # fixed instance name instead of one derived from that folder (checked before creating it).
+    name = SANDBOX_SERVER if args.sandbox else server_name(settings_dir())
+    if signal_existing(name):
+        log.info("PaperNym%s is already running; asked it to show its window",
+                 " (sandbox)" if args.sandbox else "")
+        return 0
     if args.sandbox:
         home, papers, count = make_sandbox()
         os.environ["PAPERNYM_HOME"] = str(home)
         welcome = [str(papers)]
         log.info("sandbox: settings %s, papers %s (%d sample PDFs)", home, papers, count)
     home = settings_dir()
-    name = server_name(home)
-    if signal_existing(name):
-        log.info("PaperNym is already running; asked it to show its window")
-        return 0
     server = QLocalServer()
     if not server.listen(name):
         QLocalServer.removeServer(name)

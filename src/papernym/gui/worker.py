@@ -20,7 +20,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from ..core import engine as engine_module
 from ..core.config import ConfigError, add_folder, load_config, save_config, with_env
-from ..core.db import Database
+from ..core.db import Database, path_key
 from ..core.identify import Identifier
 from ..core.lock import LockBusyError
 from ..core.watcher import Watcher
@@ -211,6 +211,35 @@ class Worker(QThread):
             result = self.engine.process(path, retry=True, batch=batch)
             counts["renamed" if result.status in ("ok", "check") and str(result.path) != path else "other"] += 1
         return counts
+
+    def add_held_folder(self, config: dict) -> dict:
+        """Save settings with the new (last) folder, held: watched, but no scan, renames or
+        retries there until ``release_folder`` (preview confirmed) or ``drop_folder``."""
+        self.watcher.held.add(path_key(config["folders"][-1]["path"]))
+        saved = self.apply_config(config)
+        self.watcher.reconcile()
+        return saved
+
+    def preview_held_folder(self, path: str) -> list[dict]:
+        folder = next(f for f in self.engine.config["folders"] if path_key(f["path"]) == path_key(path))
+        _, events = self.collect(lambda: self.engine.scan([folder], dry_run=True))
+        return [event for event in events if event["type"] == "preview"]
+
+    def release_folder(self, path: str):
+        """Stop holding a folder and process anything the preview left (for example new files)."""
+        self.watcher.held.discard(path_key(path))
+        folder = next((f for f in self.engine.config.get("folders", []) if path_key(f["path"]) == path_key(path)), None)
+        if folder is not None and not self.engine.config.get("paused", False):
+            self.engine.scan([folder])
+
+    def drop_folder(self, path: str) -> dict:
+        """Remove a held folder again (the user closed its preview); nothing was renamed."""
+        config = load_config(self.home, apply_env=False)
+        config["folders"] = [f for f in config["folders"] if path_key(f["path"]) != path_key(path)]
+        saved = self.apply_config(config)
+        self.watcher.held.discard(path_key(path))
+        self.watcher.reconcile()
+        return saved
 
     def validate_new_folder(self, config: dict, path: str, recursive: bool) -> dict:
         warnings = []

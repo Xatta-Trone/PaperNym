@@ -123,7 +123,8 @@ Files: `config.json`, `papers.db`, `lock`, `logs/papernym.log` (rotating, 5 x 1 
   "email": "",
   "start_at_login": false,
   "notify_on_rename": true,
-  "paused": false
+  "paused": false,
+  "theme": "system"
 }
 ```
 
@@ -136,6 +137,7 @@ Files: `config.json`, `papers.db`, `lock`, `logs/papernym.log` (rotating, 5 x 1 
 | `year` | `citation` (journal volume year, default) or `online` (first-online year) |
 | `title_search` | If `false`, titles are never sent to any service; only DOI and arXiv lookups run |
 | `email` | Sent to Crossref as `mailto` for its polite pool |
+| `theme` | Tray app colours: `system` (follow Windows/Linux light or dark mode), `light` or `dark`. Both themes use the icon colours (teal `#0B5563`, amber `#FFB020`) |
 
 Write `config.json` atomically (write temp file, then replace). The key is stored in plain
 text; say so in the UI.
@@ -643,7 +645,7 @@ Left-click (double-click on Windows) opens the main window.
 | **Naming** | Preset dropdown listing the fixed presets plus **Custom**. Choosing a preset shows its template read-only. Choosing Custom reveals an editable template field with clickable token buttons, where the user can also type fixed text, and a word-separator choice. Below: title length; year mode. A **live preview** on three sample papers updates as the user types. Invalid templates show the error inline and cannot be saved |
 | **Sources** | OpenAlex key field with a "Get a free key" link and a **Test** button; optional Semantic Scholar key; email; "Search by title" switch with a one-line privacy explanation; "Test all sources" button showing PASS/FAIL per service |
 | **History** | All renames grouped by batch; Undo per row or per batch; export to CSV |
-| **General** | Start at login; show a notification on rename; pause; open the settings folder; open the log; version; check for updates |
+| **General** | Start at login; show a notification on rename; pause; theme (System, Light, Dark); open the settings folder; open the log; version; check for updates |
 
 ### Behaviours
 
@@ -653,8 +655,12 @@ Left-click (double-click on Windows) opens the main window.
 - **Changing naming settings:** on Save, if any tool-named files exist, ask "Apply to N
   existing files?" with a preview list. Choices: Apply, Not now. State that hand-renamed
   files are left alone, with a checkbox to include them.
-- **Adding a folder:** show how many PDFs it contains and offer Preview before the first
-  scan. Show the reference-manager warning when it applies.
+- **Adding a folder:** show how many PDFs it contains (and the reference-manager warning
+  when it applies); no file is read or looked up before the user adds it. **Add** saves the
+  folder and starts watching and renaming at once. **Add and preview** saves the folder
+  but holds it (watched, but no scan, renames or retries) while a dry run shows the planned
+  names; confirming renames the ticked files and releases the folder, closing the preview
+  removes the folder again with nothing renamed.
 - **Notifications:** batched, never one per file. During a scan, one toast when it ends
   ("12 papers renamed", with the attention count in its text). Outside a scan, renames are
   collected and one toast is shown after 4 s of quiet, or at least every 20 s while files
@@ -669,7 +675,11 @@ Left-click (double-click on Windows) opens the main window.
   Linux: a `.desktop` file in `~/.config/autostart`. Start
   minimised to the tray. Each normal start re-syncs the entry with the setting, so it
   follows the program if it moves.
-- **Single instance:** launching a second copy brings the existing window to the front.
+- **Single instance:** launching a second copy brings the existing window to the front. One
+  instance per settings folder; `--sandbox` (a new temporary folder each time) allows one
+  sandbox at a time, so a sandbox and a normal instance can run side by side.
+- **Theme:** colours from the icon (teal `#0B5563`, amber `#FFB020`) in light and dark
+  variants, Fusion style on every platform; `System` follows the OS setting live.
 - **Accessibility:** every action reachable by keyboard; status is never conveyed by colour
   alone.
 

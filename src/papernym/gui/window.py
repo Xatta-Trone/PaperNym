@@ -11,10 +11,6 @@ from .common import app_icon
 from .tabs import (ActivityTab, AttentionTab, FoldersTab, GeneralTab, HistoryTab, NamingTab,
                    SourcesTab)
 
-BANNER_STYLE = ("QFrame#bannerBox, QLabel#banner { background: #FFF4D6; color: #3A2C00; "
-                "border: 1px solid #E0B341; border-radius: 4px; padding: 6px; }")
-
-
 class Banner(QWidget):
     """A dismissible, non-blocking message line (text first, so it never relies on colour)."""
 
@@ -43,7 +39,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PaperNym" + ("  [SANDBOX]" if ctl.sandbox else ""))
         self.setWindowIcon(app_icon())
         self.resize(1100, 680)
-        self.setStyleSheet(BANNER_STYLE)
         central = QWidget()
         layout = QVBoxLayout(central)
         if ctl.sandbox:

@@ -29,7 +29,7 @@ nothing real is touched, and start at login is disabled. Tick each line after ch
 ## Tabs
 - [ ] Activity: newest first; filter by status; Open file, Show in folder, Undo, Refresh metadata; Scan now with a progress bar (Auto: rows)
 - [ ] Needs attention: reason per file; Enter DOI, Edit details, Retry now, Ignore (Auto: ignore, DOI fix)
-- [ ] Folders: subfolders toggle; Reachable/UNREACHABLE text; Add shows the PDF count, the reference-manager warning when relevant, and offers Preview first; Remove; exclude patterns add/remove
+- [ ] Folders: subfolders toggle; Reachable/UNREACHABLE text; Add shows the PDF count and the reference-manager warning when relevant, and nothing is looked up until you press Add or Add and preview (the folder is listed at once; closing the preview removes it); Remove; exclude patterns add/remove
 - [ ] Naming: presets read-only; Custom shows token buttons and word separator; live preview of three papers; invalid template shows the error and Save is disabled (Auto)
 - [ ] Naming Save with existing PaperNym-named files asks "Apply to N existing files?" with a preview, Apply / Not now, and the hand-renamed checkbox (Auto: preview)
 - [ ] Sources: keys, email, title-search switch with privacy line; Test (per key) and Test all sources show PASS/FAIL/SKIP
@@ -43,3 +43,5 @@ nothing real is touched, and start at login is disabled. Tick each line after ch
 - [ ] An invalid OpenAlex key gives a banner on the Sources tab and the attention badge; other sources keep working (Auto: banner)
 - [ ] Every action reachable by keyboard (Tab, Alt+letter mnemonics, Ctrl+1..7 switch tabs, Ctrl+W hides)
 - [ ] The UI stays responsive during a scan
+- [ ] Theme: General > Theme switches Light / Dark at once; System follows the Windows setting (Settings > Personalisation > Colours) while the app is open; text stays readable in both
+- [ ] Single instance: running `papernym-gui --sandbox --show` a second time brings the first window forward; only one sandbox tray icon

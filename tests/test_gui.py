@@ -400,3 +400,67 @@ def test_activity_buttons_open_reveal_refresh_and_undo(qapp, make_ctl, tmp_path,
     open_button.click()  # the renamed file is gone: a message, not a silent failure
     assert "no longer there" in ctl.window.statusBar().currentMessage()
     assert len(opened) == 1
+
+
+def test_added_folder_waits_for_its_preview(qapp, make_ctl, tmp_path):
+    ctl = make_ctl()
+    folder = tmp_path / "later"
+    folder.mkdir()
+    paper_pdf(folder / "download.pdf")
+    config = add_folder(ctl.config, folder)
+    saved = call(qapp, ctl, lambda w: w.add_held_folder(config))
+    assert [f["path"] for f in saved["folders"]] == [str(folder.resolve())]  # listed at once
+    call(qapp, ctl, lambda w: (w.watcher.enqueue(str(folder / "download.pdf")), w.watcher.tick(10**9)))
+    qapp.processEvents()
+    time.sleep(0.5)
+    qapp.processEvents()
+    assert (folder / "download.pdf").exists()  # held: no scan, no event processing
+    items = call(qapp, ctl, lambda w: w.preview_held_folder(str(folder.resolve())))
+    assert [os.path.basename(item["new_path"]) for item in items] == [EXPECTED]
+    assert (folder / "download.pdf").exists()  # a preview renames nothing
+
+    def confirm(w):
+        counts = w.apply_selection([items[0]["path"]], [], None)
+        w.release_folder(str(folder.resolve()))
+        return counts
+
+    assert call(qapp, ctl, confirm)["renamed"] == 1
+    assert (folder / EXPECTED).exists() and not call(qapp, ctl, lambda w: w.watcher.held)
+
+
+def test_closing_the_preview_removes_the_added_folder(qapp, make_ctl, tmp_path):
+    ctl = make_ctl()
+    folder = tmp_path / "maybe"
+    folder.mkdir()
+    paper_pdf(folder / "download.pdf")
+    call(qapp, ctl, lambda w: w.add_held_folder(add_folder(ctl.config, folder)))
+    saved = call(qapp, ctl, lambda w: w.drop_folder(str(folder.resolve())))
+    assert saved["folders"] == [] and (folder / "download.pdf").exists()
+    assert load_config(ctl.home)["folders"] == []
+
+
+def test_second_sandbox_launch_shows_the_first(monkeypatch):
+    asked = []
+    monkeypatch.setattr(gui_app, "signal_existing", lambda name: asked.append(name) or True)
+    monkeypatch.setattr(gui_app, "make_sandbox", lambda: pytest.fail("a second sandbox was created"))
+    assert gui_app.main(["--sandbox"]) == 0
+    assert asked == [gui_app.SANDBOX_SERVER]
+
+
+def test_theme_switch_from_general_tab(qapp, make_ctl):
+    ctl = make_ctl()
+    general = ctl.window.general
+    assert general.theme.currentData() == "system"
+    general.theme.setCurrentIndex(general.theme.findData("dark"))
+    assert wait(qapp, lambda: ctl.config["theme"] == "dark" and qapp.property("papernymDark") is True)
+    assert load_config(ctl.home)["theme"] == "dark"
+    general.theme.setCurrentIndex(general.theme.findData("light"))
+    assert wait(qapp, lambda: qapp.property("papernymDark") is False)
+
+
+def test_theme_setting_is_validated(tmp_path):
+    from papernym.core.config import ConfigError, validate_config
+
+    with pytest.raises(ConfigError):
+        validate_config({**default_config(), "theme": "purple"})
+    assert default_config()["theme"] == "system"

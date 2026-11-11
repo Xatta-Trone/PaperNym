@@ -93,6 +93,8 @@ class PagedTable(QWidget):
         self.view.setSelectionMode(QAbstractItemView.SingleSelection)
         self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.view.setWordWrap(False)
+        self.view.setShowGrid(False)
+        self.view.setAlternatingRowColors(True)
         self.view.setTextElideMode(Qt.ElideMiddle)
         self.view.verticalHeader().setVisible(False)
         self.view.horizontalHeader().setStretchLastSection(True)

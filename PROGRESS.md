@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M5 built; waiting for the owner's manual checklist pass on Windows 11
 - **Next task:** Owner runs `docs/M5_MANUAL_CHECKLIST.md`; then M6 `scripts/build_windows.py`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 209 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 214 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -454,4 +454,10 @@ Newest entry at the bottom. Use this shape:
 - Files: `src/papernym/gui/{table,tabs,app,dialogs}.py`, `tests/test_gui.py`, `SPEC.md`, `PROGRESS.md`.
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 209 passed (4 new: paging/search/filter over 1,234 rows, Activity buttons end to end on a real renamed file, Sources labels, welcome login choice; 3 updated).
 - Not done: the owner's manual checklist on Windows 11.
+
+### 2026-11-11  M5  Owner feedback: one sandbox, add folder first, icon-colour theme
+- Done: Two tray icons came from two sandbox launches: each sandbox has a new temporary settings folder, so the per-folder instance name never matched. `--sandbox` now uses one fixed instance name, checked before the sandbox folder is created (a real launch confirmed the second exits and the first stays). Adding a folder no longer looks anything up first: **Add** saves it and starts at once; **Add and preview** saves it held (the watcher attaches but skips scans, events and retries there) while the dry run runs, then confirm renames the ticked files and releases it, or closing removes it again. New theme (`gui/theme.py`): icon teal and amber, light and dark palettes on Fusion, `theme` setting (`system`/`light`/`dark`) on the General tab, applied live; System follows the OS scheme change. Tables use alternating rows instead of grid lines.
+- Files: `src/papernym/gui/{theme,app,worker,tabs,table,window}.py`, `src/papernym/core/{watcher,config}.py`, `tests/test_gui.py`, `SPEC.md`, `docs/M5_MANUAL_CHECKLIST.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 214 passed (5 new: held folder waits for its preview, closing the preview removes the folder, second sandbox launch, theme switch, theme validation). Offscreen screenshots of Activity and General checked in both themes.
+- Problem found: restyling the application on every new Controller crashed Qt in the test run (access violation while repolishing); the theme is now applied only when light/dark actually changes.
 

@@ -26,6 +26,7 @@ DEFAULTS = {
     "start_at_login": False,
     "notify_on_rename": True,
     "paused": False,
+    "theme": "system",
 }
 
 class ConfigError(ValueError):
@@ -89,6 +90,8 @@ def validate_config(config: dict) -> dict:
     for key in ("title_search", "start_at_login", "notify_on_rename", "paused"):
         if type(result[key]) is not bool:
             raise ConfigError(f"{key} must be a boolean")
+    if result["theme"] not in ("system", "light", "dark"):
+        raise ConfigError("theme must be system, light or dark")
     for key in ("openalex_key", "s2_key", "email"):
         if not isinstance(result[key], str):
             raise ConfigError(f"{key} must be a string")

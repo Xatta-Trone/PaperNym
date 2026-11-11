@@ -786,6 +786,15 @@ class GeneralTab(QWidget):
         if ctl.sandbox:
             self.login.setEnabled(False)
             self.login.setToolTip("Disabled in sandbox mode")
+        theme_row = QHBoxLayout()
+        self.theme = QComboBox()
+        for text, value in (("System (follow Windows)", "system"), ("Light", "light"), ("Dark", "dark")):
+            self.theme.addItem(text, value)
+        self.theme.currentIndexChanged.connect(self._save)
+        theme_row.addWidget(_buddy("&Theme:", self.theme))
+        theme_row.addWidget(self.theme)
+        theme_row.addStretch(1)
+        layout.addLayout(theme_row)
         grid = QGridLayout()
         buttons = (("Open &settings folder", lambda: open_path(ctl.home)),
                    ("Open &log", self._open_log))
@@ -809,12 +818,16 @@ class GeneralTab(QWidget):
             box.blockSignals(True)
             box.setChecked(config[key])
             box.blockSignals(False)
+        self.theme.blockSignals(True)
+        self.theme.setCurrentIndex(max(0, self.theme.findData(config.get("theme", "system"))))
+        self.theme.blockSignals(False)
 
     def _save(self):
         config = copy.deepcopy(self.ctl.config)
         login_changed = config["start_at_login"] != self.login.isChecked()
         config.update({"start_at_login": self.login.isChecked(),
-                       "notify_on_rename": self.notify.isChecked(), "paused": self.paused.isChecked()})
+                       "notify_on_rename": self.notify.isChecked(), "paused": self.paused.isChecked(),
+                       "theme": self.theme.currentData()})
         if login_changed:
             self.ctl.set_start_at_login(self.login.isChecked())
         self.ctl.save_settings(config)
