@@ -373,13 +373,22 @@ def cmd_scan(ctx: Context) -> int:
     try:
         with Database(ctx.home) as db:
             worker = ctx.engine(db)
-            if not worker.config["folders"]:
-                ctx.out.line("no folders configured; add one with: papernym add-folder PATH", "warn")
+            folders = None
+            if ctx.args.folder:
+                root = Path(ctx.args.folder).expanduser().resolve()
+                if not root.is_dir():
+                    raise CliError(f"not a folder: {root}")
+                folders = [{"path": str(root), "recursive": not ctx.args.no_subfolders}]
+                scope = "with subfolders" if folders[0]["recursive"] else "without subfolders"
+                ctx.out.line(f"scanning {root} ({scope}) once; it is not added to the watched folders")
+            elif not worker.config["folders"]:
+                ctx.out.line("no folders configured; add one with: papernym add-folder PATH, "
+                             "or scan the current folder once with: papernym scan .", "warn")
                 ctx.out.line(scan_summary({"total": 0}))
                 return 0
             if dry_run:
                 ctx.out.line("dry run: nothing will be renamed", "preview")
-            worker.scan(dry_run=dry_run)
+            worker.scan(folders, dry_run=dry_run)
     finally:
         lock.release()
     return 0
@@ -673,7 +682,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="papernym", description="Rename academic paper PDFs using scholarly metadata.",
         epilog="Settings live in %APPDATA%\\PaperNym (or $PAPERNYM_HOME). "
-               "Typical start: papernym add-folder PATH, then papernym scan --dry-run.")
+               "Typical start: papernym add-folder PATH, then papernym scan --dry-run. "
+               "To rename the PDFs in the current folder once: papernym scan .")
     parser.add_argument("--version", action="version", version=f"papernym {__version__}")
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -708,8 +718,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = command("set-title-search", cmd_set_title_search, "Allow sending titles to search services")
     p.add_argument("state", choices=["on", "off"])
     command("show", cmd_show, "Print settings, folders and the settings-folder path")
-    p = command("scan", cmd_scan, "Process every PDF in the watched folders once")
+    p = command("scan", cmd_scan, "Process every PDF in the watched folders, or in FOLDER, once")
+    p.add_argument("folder", nargs="?",
+                   help="scan only this folder (e.g. . for the current one); it is not added to the watch list")
     p.add_argument("--dry-run", action="store_true", help="show old -> new without renaming")
+    p.add_argument("--no-subfolders", action="store_true", help="with FOLDER: do not include subfolders")
     p = command("watch", cmd_watch, "Scan, then keep watching until Ctrl+C")
     p.add_argument("--poll", action="store_true", help="polling observer (network drives)")
     p = command("reformat", cmd_reformat, "Apply the current naming to earlier renames")
@@ -747,6 +760,10 @@ def main(argv: list[str] | None = None, *, stdout=None, stderr=None,
     if getattr(args, "last", None) is not None and args.last < 1:
         parser.print_usage(stderr or sys.stderr)
         print("papernym undo: error: --last must be 1 or more", file=stderr or sys.stderr)
+        return 2
+    if args.command == "scan" and args.no_subfolders and not args.folder:
+        parser.print_usage(stderr or sys.stderr)
+        print("papernym scan: error: --no-subfolders needs a FOLDER", file=stderr or sys.stderr)
         return 2
     out = Output(stdout, stderr)
     ctx = Context(args, out, http_get)

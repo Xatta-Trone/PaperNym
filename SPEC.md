@@ -573,7 +573,7 @@ Installed command: `papernym`. Running with no arguments prints help.
 | `set-year citation|online` | Year mode |
 | `set-title-search on|off` | Privacy switch |
 | `show` | Print settings, folders, settings-folder path |
-| `scan [--dry-run]` | One pass |
+| `scan [FOLDER] [--dry-run] [--no-subfolders]` | One pass over the watched folders; with `FOLDER` (e.g. `.` for the current folder), one pass over that folder only, subfolders included unless `--no-subfolders`, without adding it to the watch list |
 | `watch [--poll]` | Scan, then keep watching until Ctrl+C |
 | `reformat [--dry-run] [--include-manual]` | Apply current naming to earlier renames |
 | `undo [--last N]` | Revert the last batch, or the last N renames |

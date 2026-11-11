@@ -400,3 +400,33 @@ def test_watch_refuses_when_another_writer_runs(home, papers, capsys):
     with WriterLock(home):
         code, _, err = run(capsys, "watch", "--poll")
     assert code == 1 and "already running" in err
+
+
+def test_scan_one_folder_without_watching_it(home, papers, capsys, monkeypatch):
+    sub = papers / "sub"
+    sub.mkdir()
+    paper_pdf(sub / "download.pdf")
+    monkeypatch.chdir(papers)
+    code, out, _ = run(capsys, "scan", ".", "--dry-run")
+    assert code == 0 and "(with subfolders)" in out and f"[preview] download.pdf -> {EXPECTED}" in out
+    code, out, _ = run(capsys, "scan", ".", "--no-subfolders")
+    assert code == 0 and "Summary: 0 PDFs" in out and (sub / "download.pdf").exists()
+    code, out, _ = run(capsys, "scan", ".")
+    assert code == 0 and f"[ok] download.pdf -> {EXPECTED}" in out
+    assert (sub / EXPECTED).exists()
+    assert load_config(home)["folders"] == []
+    code, out, _ = run(capsys, "undo")
+    assert code == 0 and (sub / "download.pdf").exists()
+
+
+def test_scan_folder_errors(home, tmp_path, capsys):
+    code, _, err = run(capsys, "scan", str(tmp_path / "missing"))
+    assert code == 1 and "not a folder" in err
+    assert run(capsys, "scan", "--no-subfolders")[0] == 2
+
+
+def test_scan_folder_respects_writer_lock(home, papers, capsys):
+    pdf = paper_pdf(papers / "download.pdf")
+    with WriterLock(home):
+        code, _, err = run(capsys, "scan", str(papers))
+    assert code == 1 and "already running" in err and pdf.exists()

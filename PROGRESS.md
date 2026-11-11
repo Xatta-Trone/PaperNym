@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M4 complete; awaiting owner to start M5
 - **Next task:** M5 `papernym-gui` launches from source (`--sandbox`, `--show`, `--debug`)
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 184 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 187 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -422,4 +422,11 @@ Newest entry at the bottom. Use this shape:
   - `mohammadi-et-al-2026-lidar-based-pavement-marking-detection-for-construction-engineering-a-systematic-review-of-methods.pdf` -> `2026_Mohammadi_LiDAR-Based_Pavement_Marking_Detection_for_Construction_Engineering_A_Systematic_Review_of_Methods_and_Applications.pdf`
   Then: `status` (11 named, nothing needs attention); `reformat --dry-run` with `authors_year_title_zotero` previewed 11 renames (e.g. `Islam et al - 2026 - Crash Risk Analysis ... .pdf`); `undo` restored all 11 original names; a re-scan left them alone (undone first-time renames count as hand-named, SPEC 9). `test-apis`: 8 PASS, 2 SKIP (no OpenAlex key), 0 FAIL. `watch` on an empty temp folder: a second `scan` was refused (exit 1) and `status` showed the watcher running; a sample copied in as `download.part` then renamed to `download.pdf` was renamed to `2024_Gao_Uncertainty-aware_...pdf` live.
 - Decisions: (1) `format` in config.json may hold a preset name (`citekey` needs its own capitalisation, which a plain template cannot express); `set-format PRESET` stores the name. Recorded in SPEC section 4. (2) `load_config(apply_env=False)` for settings commands so `OPENALEX_API_KEY`/`S2_API_KEY` are never written to disk. (3) `stable_file` skips the 1.5 s two-check wait for files untouched for 30 s (scans of large existing libraries were 1.5 s per file); fresh downloads still get the full check. (4) `fix` follows the spec (`--doi` only); edited-field fixes stay a GUI feature. (5) `test-apis` reports unexpected values as FAIL, so its output is strictly PASS/FAIL/SKIP.
+- Next: Await the owner's instruction to begin M5 (tray app).
+
+### 2026-11-10  M4  Scan one folder on request (owner request)
+- Done: Added `scan [FOLDER] [--no-subfolders]`. `papernym scan .` renames the PDFs in the current folder (and its subfolders) once, without adding it to the watched folders. `--dry-run` previews; the writer lock still applies. `--no-subfolders` without a FOLDER is a usage error (exit 2). Confirmed that `papernym add-folder .` already adds the current folder.
+- Files: `src/papernym/cli.py`, `tests/test_cli.py`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 187 passed (3 new). Live: `scan . --dry-run` then `scan .` in a temp copy of sample_pdfs/ with a temp `PAPERNYM_HOME` named 11/11 files; `show` still listed no watched folders.
+- Decisions: The owner chose to keep plain `papernym` printing help rather than scanning the current folder, so an accidental run never renames anything. Subfolders are included by default, as with `add-folder`. SPEC section 11 updated.
 - Next: Await the owner's instruction to begin M5 (tray app).
