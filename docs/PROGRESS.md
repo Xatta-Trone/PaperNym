@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M6 built locally (exe, installer, release workflow); M5 manual checklist still open
 - **Next task:** Owner: M5 checklist, push the repo to `Xatta-Trone/papernym`, clean-account install test, then tag `v0.1.0` for the first (unsigned) release
-- **Pending, later (owner, 2026-11-11):** M7 PyPI and M8 Linux; not started
+- **Pending, later (owner, 2026-11-11):** M7: real PyPI upload, CHANGELOG, README install via pip (TestPyPI done); M8 Linux not started
 - **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 243 passed
 - **Open questions for the owner:** none (releases go out unsigned; see docs/BUILDING.md)
 
@@ -105,7 +105,8 @@ Rules:
 - [ ] CHANGELOG
 - [ ] README: replace "from source" install with `pip install papernym` / `pipx install papernym` once published
 - [x] Build sdist and wheel; `twine check` (`twine check --strict` passes; sdist holds only `src/`, `tests/` and project files)
-- [ ] Upload to TestPyPI; install from it in a fresh venv (workflow `pypi-release.yml` ready; waiting for the owner's TestPyPI trusted publisher and the `testpypi` environment)
+- [x] Upload to TestPyPI; install from it in a fresh venv (0.1.2 at https://test.pypi.org/project/papernym/0.1.2/)
+- [ ] Upload to PyPI (same workflow, target `pypi`; needs the PyPI trusted publisher and the `pypi` environment)
 - [ ] GitHub Actions: tests on `windows-latest` and `ubuntu-latest`; release workflow
 
 ### M8 Linux (priority 3)
@@ -535,4 +536,9 @@ Newest entry at the bottom. Use this shape:
 - Checked locally: `uv build`, `uvx twine check --strict` (both files PASSED), wheel installed in a clean Python 3.11 venv: `papernym --version` 0.1.2, `show`, `formats` work; `papernym.exe` and `papernym-gui.exe` are created. The workflow itself has not run yet.
 - Not checked: whether the name `papernym` is free on TestPyPI and PyPI (the owner's pending-publisher form says so).
 - Next: owner creates the TestPyPI account, pending publisher and `testpypi` environment; then run the workflow with target `testpypi`.
+
+### 2026-11-11  M7  TestPyPI upload checked
+- Done: the owner set up TestPyPI trusted publishing and ran `pypi-release.yml`; papernym 0.1.2 is at https://test.pypi.org/project/papernym/0.1.2/ (wheel 197 KB, sdist 218 KB; metadata: MIT, Python >=3.10, Markdown README, project URLs).
+- Checked: fresh Python 3.11 venv, `pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "papernym[gui]==0.1.2"`: `papernym --version` 0.1.2; `papernym scan` on copies of 3 sample papers renamed all 3 with live lookups (temporary home, keyring off); `python -m papernym.gui --sandbox --debug` (offscreen) ran 12 s with no errors.
+- Next: real PyPI when the owner wants it (PyPI account, pending publisher with environment `pypi`, GitHub environment `pypi`, then the workflow with target `pypi`); after that switch the README install to `pip install papernym` and add a CHANGELOG.
 
