@@ -76,13 +76,13 @@ def version_file(ver: str) -> Path:
     return path
 
 
-def third_party_licenses(target: Path) -> None:
+def third_party_licenses(target: Path, names: list[str] | None = None) -> None:
     """THIRD_PARTY_LICENSES.txt: name, version, licence and licence text of every bundled package."""
     lines = ["PaperNym bundles the following open-source software.",
              "PySide6 / Qt are used under the GNU LGPL v3; they are shipped as separate,",
-             "replaceable DLLs in the _internal folder (one-folder build).",
+             "replaceable shared libraries in the _internal folder (one-folder build).",
              "Python itself is under the PSF License Agreement.", ""]
-    for name in BUNDLED:
+    for name in names or BUNDLED:
         try:
             dist = metadata.distribution(name)
         except metadata.PackageNotFoundError:

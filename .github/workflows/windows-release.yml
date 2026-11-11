@@ -87,8 +87,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $files = Get-ChildItem dist -Filter "PaperNym-Setup-*" | ForEach-Object { $_.FullName }
+          # The Linux workflow may create the release first; either one may win the race.
           gh release view $env:RELEASE_TAG *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create $env:RELEASE_TAG --title "PaperNym $($env:RELEASE_TAG.TrimStart('v'))" --generate-notes
+            if ($LASTEXITCODE -ne 0) {
+              gh release view $env:RELEASE_TAG *> $null
+              if ($LASTEXITCODE -ne 0) { throw "Could not create release $env:RELEASE_TAG" }
+            }
           }
           gh release upload $env:RELEASE_TAG @files --clobber

@@ -306,6 +306,48 @@ def test_autostart_linux_desktop_file(tmp_path, monkeypatch):
     assert not desktop.exists() and not autostart.is_enabled()
 
 
+def test_menu_entry_is_written_once_and_removed(tmp_path, monkeypatch):
+    monkeypatch.setattr(autostart, "launch_command", lambda: '"/opt/venv/bin/python" -m papernym.gui')
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert autostart.install_menu_entry()
+    entry = tmp_path / "applications" / "papernym.desktop"
+    text = entry.read_text(encoding="utf-8")
+    assert 'Exec="/opt/venv/bin/python" -m papernym.gui --show' in text
+    assert f"Icon={autostart.icon_path()}" in text and autostart.icon_path().is_file()
+    assert "X-GNOME-Autostart" not in text and "StartupWMClass=PaperNym" in text
+    assert not autostart.install_menu_entry()  # unchanged: not rewritten
+    assert autostart.remove_menu_entry() and not entry.exists()
+    assert not autostart.remove_menu_entry()
+
+
+def test_menu_entry_only_for_linux_pip_installs(monkeypatch):
+    monkeypatch.setattr(autostart.sys, "platform", "linux")
+    assert autostart.needs_menu_entry()
+    monkeypatch.setattr(autostart.sys, "frozen", True, raising=False)
+    assert not autostart.needs_menu_entry()  # the .deb ships its own entry
+    monkeypatch.setattr(autostart.sys, "frozen", False)
+    monkeypatch.setattr(autostart.sys, "platform", "win32")
+    assert not autostart.needs_menu_entry()
+
+
+def test_closing_the_window_hides_it_when_there_is_a_tray(qapp, make_ctl, monkeypatch):
+    ctl = make_ctl()
+    monkeypatch.setattr(ctl, "has_tray", lambda: True)
+    ctl.show_window()
+    ctl.window.close()
+    qapp.processEvents()
+    assert not ctl.window.isVisible() and not ctl.quitting and ctl.worker.isRunning()
+
+
+def test_closing_the_window_quits_when_there_is_no_tray(qapp, make_ctl, monkeypatch):
+    ctl = make_ctl()
+    monkeypatch.setattr(ctl, "has_tray", lambda: False)
+    ctl.show_window()
+    ctl.window.close()
+    assert wait(qapp, lambda: ctl.quitting)  # no tray to return to: closing quits
+    assert wait(qapp, lambda: ctl.worker.isFinished())
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows registry")
 def test_autostart_windows_registry(monkeypatch):
     values = {}

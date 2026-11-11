@@ -1,0 +1,97 @@
+name: Linux release
+
+# Push a version tag (git tag v0.1.0 && git push origin v0.1.0) to build the .deb and publish
+# it on the GitHub Release, next to the Windows installer. "Run workflow" by hand builds a
+# test package (version <x.y.z>+git<date>.<sha>) as a workflow artifact; give an existing tag
+# to publish that tag instead. All build logic lives in scripts/build_linux.py.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing tag to build and publish (for example v0.1.0). Leave empty for a test build."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: linux-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deb:
+    # The oldest supported Ubuntu: the bundled Python and Qt need its glibc (2.35) or newer.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the system libraries Qt needs
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libdbus-1-3 libfontconfig1
+
+      - name: Install PaperNym with the GUI, test and build extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[gui,dev,build]"
+
+      - name: Run the tests
+        run: python -m pytest -q
+
+      - name: Build the app and the .deb
+        run: |
+          if [ -n "$RELEASE_TAG" ]; then
+            python scripts/build_linux.py --expected-version "$RELEASE_TAG"
+          else
+            python scripts/build_linux.py --snapshot
+          fi
+
+      - name: Install the .deb and run it
+        run: |
+          sudo apt-get install -y -q ./dist/papernym_*_amd64.deb
+          export PAPERNYM_HOME="$(mktemp -d)" PAPERNYM_KEYRING=off
+          papernym --version
+          papernym show
+          test -f /usr/share/applications/papernym.desktop
+          timeout 10 papernym-gui --sandbox || [ $? -eq 124 ]
+          sudo apt-get remove -y -q papernym
+          test ! -e /usr/bin/papernym
+
+      - name: Upload the package as a workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: papernym-deb
+          path: |
+            dist/papernym_*_amd64.deb
+            dist/papernym_*_amd64.deb.sha256
+          if-no-files-found: error
+
+      - name: Publish to the GitHub Release
+        if: startsWith(env.RELEASE_TAG, 'v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The Windows workflow may have created the release already.
+          gh release view "$RELEASE_TAG" > /dev/null 2>&1 ||
+            gh release create "$RELEASE_TAG" --title "PaperNym ${RELEASE_TAG#v}" --generate-notes ||
+            gh release view "$RELEASE_TAG" > /dev/null
+          gh release upload "$RELEASE_TAG" dist/papernym_*_amd64.deb dist/papernym_*_amd64.deb.sha256 --clobber

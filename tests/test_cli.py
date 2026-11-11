@@ -201,6 +201,27 @@ def test_invalid_config_reports_failure(home, capsys):
 
 # Renaming commands --------------------------------------------------------------
 
+def test_menu_entry_on_linux(home, tmp_path, capsys, monkeypatch):
+    import sys
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+    entry = tmp_path / "share" / "applications" / "papernym.desktop"
+    code, out, _ = run(capsys, "menu-entry")
+    if code == 0:  # PySide6 installed (the test environment has it)
+        assert entry.is_file() and "app menu" in out
+    code, out, _ = run(capsys, "menu-entry", "--remove")
+    assert code == 0 and not entry.exists()
+
+
+def test_menu_entry_is_linux_only(home, capsys, monkeypatch):
+    import sys
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    code, _, err = run(capsys, "menu-entry")
+    assert code == 1 and "Linux" in err
+
+
 def test_scan_without_folders_says_so(home, capsys):
     code, out, _ = run(capsys, "scan")
     assert code == 0

@@ -49,11 +49,30 @@ def open_path(path: str | Path):
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
 
+def _select_in_file_manager(path: Path) -> bool:
+    """Ask the desktop's file manager (org.freedesktop.FileManager1) to select PATH."""
+    try:
+        from PySide6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
+    except ImportError:
+        return False
+    bus = QDBusConnection.sessionBus()
+    if not bus.isConnected():
+        return False
+    manager = QDBusInterface("org.freedesktop.FileManager1", "/org/freedesktop/FileManager1",
+                             "org.freedesktop.FileManager1", bus)
+    if not manager.isValid():
+        return False
+    reply = manager.call("ShowItems", [path.resolve().as_uri()], "")
+    return reply.type() != QDBusMessage.MessageType.ErrorMessage
+
+
 def show_in_folder(path: str | Path):
-    """Open the containing folder with the file selected (Windows), or just the folder."""
+    """Open the containing folder with the file selected where the platform allows it."""
     path = Path(path)
     if sys.platform == "win32" and path.exists():
         subprocess.Popen(["explorer", "/select,", str(path)])
+    elif sys.platform.startswith("linux") and path.exists() and _select_in_file_manager(path):
+        return
     else:
         open_path(path.parent if path.suffix else path)
 

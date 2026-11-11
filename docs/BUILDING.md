@@ -1,4 +1,4 @@
-# Building and releasing PaperNym for Windows
+# Building and releasing PaperNym (Windows and Linux)
 
 ## One-time setup
 
@@ -67,10 +67,15 @@ git tag -a v0.1.3 -m "PaperNym 0.1.3"
 git push origin v0.1.3
 ```
 
-Two workflows start from the tag:
+Three workflows start from the tag:
 
 - `windows-release.yml` builds the installer and attaches it to the GitHub Release.
+- `linux-release.yml` builds the `.deb` and attaches it to the same release (see "Linux
+  package" below).
 - `pypi-release.yml` publishes the package to PyPI (see "Publishing to PyPI" below).
+
+Whichever release workflow finishes first creates the GitHub Release; the other adds its
+files to it.
 
 Each checks that the tag equals `papernym.__version__` and runs the tests before it
 publishes anything. A version number can be used only once on PyPI, so a failed release is
@@ -89,6 +94,35 @@ builds the artifact.
 
 Bump `src/papernym/__init__.py` before tagging. The app's update check reads the latest
 release of `Xatta-Trone/papernym`.
+
+## Linux package
+
+`scripts/build_linux.py` builds the same one-folder app with PyInstaller (shared
+`packaging/papernym.spec`), smoke-tests both programs, then packs a `.deb` with `dpkg-deb`:
+
+| In the package | What it is |
+|---|---|
+| `/opt/papernym/` | The app folder (`PaperNym` tray app, `papernym-cli`, bundled Python and Qt) |
+| `/usr/bin/papernym`, `/usr/bin/papernym-gui` | Links to the two programs |
+| `/usr/share/applications/papernym.desktop` | App-menu entry |
+| `/usr/share/icons/hicolor/*/apps/papernym.*` | Icons (SVG plus PNGs from 48 to 512 px) |
+
+The package depends on the system libraries Qt's X11/Wayland plugins load (`libxcb-cursor0`,
+`libegl1` and so on), so `apt install ./papernym_*.deb` pulls them in.
+
+Build on Ubuntu 22.04 (the oldest supported release; newer glibc versions run older builds,
+not the other way round):
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[gui,dev,build]"
+python scripts/build_linux.py --snapshot     # dist/papernym_<version>+git<date>.<sha>_amd64.deb
+```
+
+`--snapshot` marks test builds; release builds use `--expected-version vX.Y.Z` instead.
+`.github/workflows/linux-release.yml` runs the tests, builds on `ubuntu-22.04`, installs the
+`.deb`, runs both programs, removes it again, and then uploads the artifact (and attaches it
+to the release for a tag). "Run workflow" without a tag gives a snapshot artifact to try.
 
 ## Code signing (not used for now)
 
