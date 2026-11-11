@@ -510,3 +510,6 @@ Newest entry at the bottom. Use this shape:
 - Done: `README.md` at the root: what PaperNym does, features, Windows install (with the unsigned SmartScreen note and SHA256 check), install from source, getting started (tray and CLI), all 15 presets and custom templates, how papers are identified, safety, privacy table (SPEC 16), API keys and where they are stored, CLI reference, settings folder and sandbox, uninstall, development links, roadmap, licence and data credits. `pyproject.toml` now uses it as the package readme (`readme = "README.md"`), ready for M7.
 - Pending by owner decision: M7 PyPI and M8 Linux come later; the README lists both under Roadmap and offers install from source meanwhile.
 
+### 2026-11-11  Repo  Move pdf_metadata.py into prototype/
+- Done: owner asked to clear it from the root. `pdf_metadata.py` (a 79-line PyMuPDF script that prints a PDF's properties) is used by nothing in the package, tests, build or workflow, so it moved unchanged with `git mv` to `prototype/`, next to the other read-only prototype scripts. SPEC section 19 updated.
+

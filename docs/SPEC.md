@@ -912,7 +912,7 @@ testable by hand; it must not delay M5.
   run everything through it. Never install into the system Python.
 - **Prototype files are read-only.** Move `paper_renamer.py`, `test_apis.py`,
   `compare_sources.py`, `compare_pdf_libs.py` into `prototype/` and do not edit them.
-  Leave `pdf_metadata.py` untouched.
+  `pdf_metadata.py` (a PyMuPDF metadata viewer) was moved there too on 2026-11-11, unchanged.
 - **Tests come with the code.** Every module gets tests in the same change. No test may use
   the network (mock HTTP) or touch real user files (use `tmp_path`). No test may import
   PyMuPDF.
