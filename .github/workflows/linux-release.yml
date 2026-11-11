@@ -68,7 +68,11 @@ jobs:
 
       - name: Install the .deb and run it
         run: |
-          sudo apt-get install -y -q ./dist/papernym_*_amd64.deb
+          sudo apt-get install -y -q ./dist/papernym_*_amd64.deb | tee install.log
+          # Only the package and a few Qt libraries, never a whole desktop.
+          new=$(grep -oP '\d+(?= newly installed)' install.log | tail -1)
+          echo "newly installed packages: $new"
+          [ "$new" -le 30 ] || { echo "::error::the .deb pulled in $new packages"; exit 1; }
           export PAPERNYM_HOME="$(mktemp -d)" PAPERNYM_KEYRING=off
           papernym --version
           papernym show

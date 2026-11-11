@@ -136,7 +136,9 @@ def build_deb(deb_version: str) -> Path:
         "Maintainer: PaperNym maintainers <papernym@users.noreply.github.com>",
         f"Installed-Size: {folder_size_kb(root)}",
         "Depends: " + ", ".join(DEPENDS),
-        "Recommends: gnome-shell-extension-appindicator | plasma-workspace",
+        # Suggests, not Recommends: apt installs recommendations by default, and these would
+        # pull a whole GNOME or KDE desktop onto Xfce, minimal or server systems.
+        "Suggests: gnome-shell-extension-appindicator",
         "Homepage: https://github.com/Xatta-Trone/papernym",
         "Description: rename research paper PDFs from their publication metadata",
         " PaperNym watches your folders (such as Downloads) and renames academic PDFs from",
