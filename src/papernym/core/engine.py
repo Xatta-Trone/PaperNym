@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Callable
 
 from .db import Database, path_key
-from .identify import Identifier, PaperMatch
+from .identify import Identifier, PaperMatch, normal_title
 from .naming import unique_path
-from .pdfread import PdfReadError, read_pdf
+from .pdfread import DOI_RE, PdfReadError, read_pdf
+from .sources.common import surname
 
 
 @dataclass(frozen=True)
@@ -352,3 +353,47 @@ class Engine:
             counts["undone"] += 1
             self._event("undo", old, f"{new.name} -> {old.name}", old_path=str(new), new_path=str(old))
         return counts
+
+    def fix(self, path: str | Path, *, doi: str | None = None, title: str | None = None,
+            author: str | None = None, year: int | None = None) -> ProcessResult:
+        """Replace a check/unknown file's metadata by DOI or edited fields."""
+        path = Path(path)
+        row = self.db.get_file(path)
+        if row is None or row["status"] not in ("check", "unknown") or not path.is_file():
+            raise ValueError("manual fix requires an existing check or unknown PDF")
+        if bool(doi) == bool(title):
+            raise ValueError("provide exactly one of DOI or edited title")
+        if doi:
+            doi = doi.strip().lower().rstrip(".)('")
+            if not DOI_RE.fullmatch(doi):
+                raise ValueError("invalid DOI")
+            info = self.read_pdf(path)
+            match, _ = self.identifier.identify_online(path, info, refresh=True, only_doi=doi)
+            if match is None:
+                return ProcessResult(row["status"], path, "DOI could not be verified")
+        else:
+            if year is not None and (type(year) is not int or year < 0):
+                raise ValueError("year must be a nonnegative integer")
+            clean_title = " ".join(title.split())
+            if not clean_title:
+                raise ValueError("title must not be empty")
+            first = surname(author) if author else ""
+            meta = {"title": clean_title, "year": year, "year_online": year,
+                    "authors": [first] if first else [], "journal": "", "source": "manual"}
+            match = PaperMatch("title:" + normal_title(clean_title), meta)
+        return self._rename(path, fingerprint(path), match, 0, source=match.meta["source"],
+                            given_name=row["given_name"])
+
+    def refresh(self, path: str | Path) -> ProcessResult:
+        """Re-query one known PDF, preserving its name if services fail."""
+        path = Path(path)
+        row = self.db.get_file(path)
+        if row is None or not path.is_file():
+            raise ValueError("refresh requires a known PDF")
+        if row["given_name"] and row["given_name"] != path.name:
+            return ProcessResult("skipped", path, "hand-renamed file")
+        match, _ = self.identifier.identify_online(path, self.read_pdf(path), refresh=True)
+        if match is None:
+            return ProcessResult(row["status"], path, "metadata refresh did not find a verified record")
+        return self._rename(path, fingerprint(path), match, row["attempts"],
+                            source=match.meta["source"], given_name=row["given_name"])

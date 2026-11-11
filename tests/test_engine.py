@@ -19,14 +19,16 @@ class FakeIdentifier:
         self.calls = 0
         self.refresh_calls = 0
         self.refresh_match = None
+        self.last_only_doi = None
 
     def identify(self, _path, _info):
         self.calls += 1
         return self.outcome
 
-    def identify_online(self, _path, _info, *, refresh=False):
+    def identify_online(self, _path, _info, *, refresh=False, only_doi=None):
         assert refresh
         self.refresh_calls += 1
+        self.last_only_doi = only_doi
         return self.refresh_match, LookupStats()
 
 
@@ -309,3 +311,44 @@ def test_undo_does_not_overwrite_and_reformat_restores_given_name(tmp_path):
         assert worker.undo(last=1)["undone"] == 1
         assert original.exists()
         assert db.get_file(original)["given_name"] == original.name
+
+
+def test_manual_fix_by_fields_and_doi(tmp_path):
+    unknown = tmp_path / "unknown.pdf"
+    unknown.write_bytes(b"unknown")
+    check_file = tmp_path / "check.pdf"
+    check_file.write_bytes(b"check")
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, FakeIdentifier(outcome("unknown")))
+        worker.process(unknown)
+        with pytest.raises(ValueError, match="invalid DOI"):
+            worker.fix(unknown, doi="not-a-doi")
+        fixed = worker.fix(unknown, title="  A corrected paper  ", author="Alice Jones", year=2026)
+        assert fixed.status == "ok"
+        assert fixed.path.name == "2026_Jones_A_corrected_paper.pdf"
+        assert db.get_paper("title:a corrected paper")["source"] == "manual"
+        check_worker = engine(db, FakeIdentifier(outcome("check", dict(META, source="pdf-only"))))
+        check = check_worker.process(check_file)
+        fake = FakeIdentifier(outcome())
+        fake.refresh_match = PaperMatch("doi:10.1234/test", META)
+        doi_worker = engine(db, fake)
+        corrected = doi_worker.fix(check.path, doi="10.1234/test")
+        assert corrected.status == "ok"
+        assert not corrected.path.name.endswith("_CHECK.pdf")
+        assert fake.last_only_doi == "10.1234/test"
+
+
+def test_refresh_updates_year_but_preserves_file_on_failed_lookup(tmp_path):
+    path = tmp_path / "download.pdf"
+    path.write_bytes(b"PDF")
+    fake = FakeIdentifier(outcome())
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, fake)
+        named = worker.process(path).path
+        assert worker.refresh(named).path == named
+        assert named.exists()
+        newer = dict(META, year=2027)
+        fake.refresh_match = PaperMatch("doi:10.1/test", newer)
+        updated = worker.refresh(named)
+        assert updated.path.name.startswith("2027_Smith_")
+        assert db.get_paper("doi:10.1/test")["year"] == 2027

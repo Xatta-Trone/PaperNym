@@ -201,11 +201,13 @@ class Identifier:
             return None
 
     def identify_online(self, path: str | Path, info: dict,
-                        *, refresh: bool = False) -> tuple[PaperMatch | None, LookupStats]:
+                        *, refresh: bool = False,
+                        only_doi: str | None = None) -> tuple[PaperMatch | None, LookupStats]:
         path = Path(path)
         stats = LookupStats()
         meta_dois = [doi.lower() for doi in info.get("md_dois", [])]
-        candidates = list(dict.fromkeys(meta_dois + find_dois(info.get("text", ""))))[:6]
+        candidates = ([only_doi.lower().rstrip(".)('")] if only_doi else
+                      list(dict.fromkeys(meta_dois + find_dois(info.get("text", ""))))[:6])
         for doi in candidates:
             ident = "doi:" + doi
             cached = None if refresh else self._cached(ident)
@@ -227,6 +229,8 @@ class Identifier:
                     break
             if stats.reached > before[0] and stats.failed == before[1]:
                 self._mark_miss(ident)
+        if only_doi:
+            return None, stats
         arxiv_match = ARXIV_RE.search(info.get("text", "")) or ARXIV_FILE_RE.match(path.stem)
         if arxiv_match:
             aid = arxiv_match.group(1)

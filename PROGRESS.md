@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** manual fix by DOI/fields and refresh
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 13 passed
+- **Next task:** watcher events, queue, and startup scan
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py tests/test_identify.py` — 40 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -59,7 +59,7 @@ Rules:
 - [x] Dry run (scan and reformat)
 - [x] Reformat, including `include_manual`
 - [x] Undo by batch and by last N
-- [ ] Manual fix (by DOI, by edited fields) and refresh
+- [x] Manual fix (by DOI, by edited fields) and refresh
 - [ ] `core/watcher.py`: events, queue, start-up scan
 - [ ] Watcher: settings reload, folder reconcile (unplugged drive), retry timer, pause
 - [ ] Folder rules: overlap, reference-manager warning
@@ -361,3 +361,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 13 passed.
 - Decisions: An undone first rename retains the last tool-given name so the original name counts as user-chosen; undoing a reformat restores the earlier tool-given name.
 - Next: Add manual DOI/field fixes and metadata refresh.
+
+### 2026-11-10  M3  Fix and refresh metadata
+- Done: Added DOI-only manual verification, edited-field fixes for attention files, and forced metadata refresh for known files while preserving names if lookup fails.
+- Files: `src/papernym/core/engine.py`, `src/papernym/core/identify.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py tests/test_identify.py` — 40 passed. One test DOI initially violated the 4-digit registrant rule and was corrected.
+- Decisions: Reject malformed manual DOIs and avoid renaming hand-chosen names during a metadata refresh.
+- Next: Build the watcher event queue and startup scan.
