@@ -14,9 +14,10 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/papernym/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/papernym?color=0B5563"></a>
-  <a href="https://pypistats.org/packages/papernym"><img alt="PyPI downloads" src="https://img.shields.io/pypi/dm/papernym?label=PyPI%20downloads&color=0B5563"></a>
-  <a href="https://github.com/Xatta-Trone/papernym/releases"><img alt="GitHub downloads" src="https://img.shields.io/github/downloads/Xatta-Trone/papernym/total?label=GitHub%20downloads&color=0B5563"></a>
+  <a href="https://pypi.org/project/papernym/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/papernym?logo=pypi&logoColor=white&color=0B5563"></a>
+  <a href="https://github.com/Xatta-Trone/papernym/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Xatta-Trone/papernym?label=release&logo=github&color=0B5563"></a>
+  <a href="https://pypistats.org/packages/papernym"><img alt="PyPI downloads" src="https://img.shields.io/pypi/dm/papernym?label=downloads&logo=pypi&logoColor=white&color=0B5563"></a>
+  <a href="https://github.com/Xatta-Trone/papernym/releases"><img alt="GitHub downloads" src="https://img.shields.io/github/downloads/Xatta-Trone/papernym/total?label=downloads&logo=github&color=0B5563"></a>
   <a href="https://github.com/Xatta-Trone/papernym/blob/main/LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0B5563">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-FFB020">
