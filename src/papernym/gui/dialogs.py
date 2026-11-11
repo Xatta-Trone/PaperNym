@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, 
                                QTreeWidgetItem, QVBoxLayout, QWizard, QWizardPage)
 
 from ..core.naming import PRESETS, build_name
-from .common import SAMPLE_PAPERS, short
+from .common import SAMPLE_PAPERS, LinkLabel, short
 
 
 class PreviewDialog(QDialog):
@@ -186,13 +186,12 @@ class WelcomeWizard(QWizard):
         key_page = QWizardPage()
         key_page.setTitle("3. OpenAlex key (optional)")
         key_page.setSubTitle("A free OpenAlex key adds a second source for lookups. PaperNym works "
-                             "without it. The key is stored in plain text in the settings folder.")
+                             "without it. The key is kept in your system's credential store "
+                             "(Windows Credential Manager on Windows).")
         layout = QFormLayout(key_page)
         self.key = QLineEdit()
         layout.addRow("OpenAlex &key", self.key)
-        link = QLabel('<a href="https://openalex.org/settings/api">Get a free key</a>')
-        link.setOpenExternalLinks(True)
-        layout.addRow(link)
+        layout.addRow(LinkLabel("Get a free key", "https://openalex.org/settings/api"))
         self.login = QCheckBox("Start PaperNym when I &log in (it waits quietly in the tray)")
         self.login.setChecked(allow_login)
         self.login.setEnabled(allow_login)

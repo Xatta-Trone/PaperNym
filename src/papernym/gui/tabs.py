@@ -8,7 +8,8 @@ import os
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QFormLayout,
                                QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QInputDialog,
                                QLabel, QLineEdit, QListWidget, QMessageBox, QProgressBar,
@@ -20,8 +21,11 @@ from ..core.apitest import run_checks
 from ..core.config import ConfigError, validate_config
 from ..core.logsetup import log_path
 from ..core.naming import PRESETS, TOKENS, TemplateError, build_name, validate_template
-from ..core.sources.http import HttpClient
-from .common import (EVENT_STATUS, FILE_STATUS, REASONS, SAMPLE_PAPERS, open_path, short,
+from ..core import updates
+from ..core.keystore import SecretStore
+from ..core.sources.http import HttpClient, mask_secrets
+from .common import (EVENT_STATUS, FILE_STATUS, REASONS, SAMPLE_PAPERS, LinkLabel, app_icon, open_path,
+                     short,
                      show_in_folder)
 from .dialogs import DetailsDialog, PreviewDialog
 from .table import PagedTable
@@ -50,6 +54,13 @@ def _item(text: str, data=None) -> QTableWidgetItem:
     if data is not None:
         item.setData(Qt.UserRole, data)
     return item
+
+
+def _secret_field() -> QLineEdit:
+    """A key field that hides its text unless the user is editing it."""
+    field = QLineEdit()
+    field.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+    return field
 
 
 def _buddy(text: str, widget) -> QLabel:
@@ -619,18 +630,16 @@ class SourcesTab(QWidget):
         self.banner.hide()
         layout.addWidget(self.banner)
         form = QFormLayout()
-        self.openalex = QLineEdit()
+        self.openalex = _secret_field()
         self.openalex.setPlaceholderText("optional")
         row = QHBoxLayout()
         row.addWidget(self.openalex, 1)
         test = QPushButton("&Test")
         test.clicked.connect(lambda: self._test({"openalex"}))
         row.addWidget(test)
-        link = QLabel('<a href="https://openalex.org/settings/api">Get a free key</a>')
-        link.setOpenExternalLinks(True)
-        row.addWidget(link)
+        row.addWidget(LinkLabel("Get a free key", "https://openalex.org/settings/api"))
         form.addRow(_buddy("&OpenAlex key", self.openalex), row)
-        self.s2 = QLineEdit()
+        self.s2 = _secret_field()
         self.s2.setPlaceholderText("optional")
         row = QHBoxLayout()
         row.addWidget(self.s2, 1)
@@ -645,7 +654,13 @@ class SourcesTab(QWidget):
         form.addRow("", self.title_search)
         form.addRow("", QLabel("Privacy: when on, a paper's title may be sent to Crossref, OpenAlex and "
                                "Semantic Scholar. When off, only DOIs and arXiv ids are looked up."))
-        form.addRow("", QLabel("Keys are stored in plain text in the settings folder."))
+        store = SecretStore(ctl.home)
+        self.key_store = QLabel(f"Keys are kept in {store.describe()}, not in the settings file."
+                                if store.available() else
+                                "No system credential store was found, so keys are kept in the settings "
+                                "file, readable only by you.")
+        self.key_store.setWordWrap(True)
+        form.addRow("", self.key_store)
         layout.addLayout(form)
         row = QHBoxLayout()
         save = QPushButton("Sa&ve sources")
@@ -796,19 +811,18 @@ class GeneralTab(QWidget):
         theme_row.addStretch(1)
         layout.addLayout(theme_row)
         grid = QGridLayout()
-        buttons = (("Open &settings folder", lambda: open_path(ctl.home)),
-                   ("Open &log", self._open_log))
+        buttons = (("Save &diagnostics...", self._save_diagnostics),)
+        if ctl.debug:  # the settings folder holds the database; shown only for debugging
+            buttons = (("Open &settings folder", lambda: open_path(ctl.home)),
+                       ("Open &log", self._open_log)) + buttons
         for column, (text, slot) in enumerate(buttons):
             button = QPushButton(text)
             button.clicked.connect(slot)
             grid.addWidget(button, 0, column)
-        self.update_button = QPushButton("Check for &updates")
-        self.update_button.setEnabled(False)
-        self.update_button.setToolTip("Available with the Windows release")
-        grid.addWidget(self.update_button, 0, 2)
+        grid.setColumnStretch(len(buttons), 1)
         layout.addLayout(grid)
-        layout.addWidget(QLabel(f"PaperNym {__version__}"))
-        layout.addWidget(QLabel(f"Settings folder: {ctl.home}"))
+        if ctl.debug:
+            layout.addWidget(QLabel(f"Settings folder: {ctl.home}"))
         layout.addStretch(1)
         ctl.config_changed.connect(self.show_config)
 
@@ -832,6 +846,115 @@ class GeneralTab(QWidget):
             self.ctl.set_start_at_login(self.login.isChecked())
         self.ctl.save_settings(config)
 
+    def _save_diagnostics(self):
+        """A copy of the log with keys and email addresses masked, saved where the user chooses."""
+        source = log_path(self.ctl.home)
+        start = str(Path.home() / "Documents" / "papernym-diagnostics.txt")
+        target, _ = QFileDialog.getSaveFileName(self, "Save diagnostics", start, "Text files (*.txt)")
+        if not target:
+            return
+        text = source.read_text(encoding="utf-8", errors="replace") if source.exists() else ""
+        Path(target).write_text(mask_diagnostics(text, self.ctl.home), encoding="utf-8")
+        self.ctl.status(f"Diagnostics saved to {target}")
+
     def _open_log(self):
         path = log_path(self.ctl.home)
         open_path(path if path.exists() else path.parent)
+
+
+def mask_diagnostics(text: str, home: Path) -> str:
+    """Hide API keys, email addresses and the settings-folder path in a log copy."""
+    import re
+
+    text = mask_secrets(text)
+    text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.-]+", "<email>", text)
+    for form in {str(home), str(home).replace("\\", "/")}:
+        text = text.replace(form, "<settings>")
+    return text
+
+
+# About ----------------------------------------------------------------------------
+
+class AboutTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        top = QHBoxLayout()
+        logo = QLabel()
+        logo.setPixmap(app_icon().pixmap(88, 88))
+        logo.setAccessibleName("PaperNym logo")
+        top.addWidget(logo, 0, Qt.AlignTop)
+        title = QVBoxLayout()
+        name = QLabel(f"<span style='font-size:20pt; font-weight:600'>PaperNym</span>"
+                      f"&nbsp;&nbsp;version {__version__}")
+        title.addWidget(name)
+        title.addWidget(QLabel("Names your research papers automatically: it watches your folders, "
+                               "looks each PDF up in scholarly databases, and renames it the way you choose."))
+        top.addLayout(title, 1)
+        layout.addLayout(top)
+        links = QFormLayout()
+        for label, text, url in (("Developer", "Xatta-Trone on GitHub", updates.DEVELOPER_URL),
+                                 ("Project", "github.com/" + updates.REPO, updates.PROJECT_URL),
+                                 ("Report a problem", "Open an issue", updates.ISSUES_URL),
+                                 ("Licence", "MIT License", updates.LICENSE_URL)):
+            links.addRow(label, LinkLabel(text, url))
+        layout.addLayout(links)
+        credits = QLabel("Paper details come from Crossref, OpenAlex, Semantic Scholar, arXiv and doi.org. "
+                         "PaperNym is not affiliated with these services.")
+        credits.setWordWrap(True)
+        layout.addWidget(credits)
+        layout.addSpacing(12)
+        layout.addWidget(QLabel("<b>Updates</b>"))
+        self.update_status = QLabel("Not checked yet.")
+        self.update_status.setWordWrap(True)
+        self.update_status.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        layout.addWidget(self.update_status)
+        row = QHBoxLayout()
+        self.check_button = QPushButton("Check for &updates now")
+        self.check_button.clicked.connect(lambda: ctl.check_updates(manual=True))
+        row.addWidget(self.check_button)
+        self.download_button = QPushButton("&Open the release page")
+        self.download_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self._url)))
+        self.download_button.hide()
+        row.addWidget(self.download_button)
+        row.addStretch(1)
+        layout.addLayout(row)
+        self.auto = QCheckBox("Check for updates &automatically (once a day; only the version number "
+                              "is fetched from GitHub)")
+        self.auto.toggled.connect(self._save)
+        layout.addWidget(self.auto)
+        layout.addStretch(1)
+        self._url = updates.RELEASES_URL
+        ctl.config_changed.connect(self.show_config)
+
+    def show_config(self, config: dict):
+        self.auto.blockSignals(True)
+        self.auto.setChecked(config.get("update_check", True))
+        self.auto.blockSignals(False)
+
+    def _save(self):
+        config = copy.deepcopy(self.ctl.config)
+        config["update_check"] = self.auto.isChecked()
+        self.ctl.save_settings(config)
+
+    def show_checking(self):
+        self.check_button.setEnabled(False)
+        self.update_status.setText("Checking GitHub for a newer version...")
+
+    def show_update(self, info, error: str):
+        self.check_button.setEnabled(True)
+        stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+        if error:
+            self.update_status.setText(f"Could not check for updates ({error}). Checked {stamp}.")
+            return
+        self._url = info.url
+        self.download_button.setVisible(info.newer)
+        if info.newer:
+            self.update_status.setText(f"Version {info.latest} is available (you have {info.current}). "
+                                       f"{updates.how_to_update()}")
+        elif info.latest:
+            self.update_status.setText(f"PaperNym {info.current} is up to date. Checked {stamp}.")
+        else:
+            self.update_status.setText(f"No release has been published yet. Checked {stamp}.")
+

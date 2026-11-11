@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from ..core.naming import PRESETS
 from .common import app_icon, short, show_in_folder, tray_icon
 from .dialogs import PreviewDialog, WelcomeWizard
 from . import theme
+from ..core import updates
+from ..core.sources.http import HttpClient
 from .window import MainWindow
 from .worker import Worker
 
@@ -36,6 +39,12 @@ OUTAGE = ("Metadata services unreachable; new papers are marked _CHECK and will 
           "automatically.")
 
 
+class UpdateRelay(QObject):
+    """Carries an update-check result from its thread back to the UI thread."""
+
+    finished = Signal(object, str, bool)  # UpdateInfo or None, error text, manual
+
+
 class Controller(QObject):
     """Glue between the worker thread, the tray icon and the main window."""
 
@@ -45,9 +54,10 @@ class Controller(QObject):
 
     def __init__(self, home: Path, *, sandbox: bool = False, welcome_folders: list[str] | None = None,
                  http_get=None, worker_kwargs: dict | None = None, first_run: bool | None = None,
-                 interactive: bool = True):
+                 interactive: bool = True, debug: bool = False):
         super().__init__()
         self.home = Path(home)
+        self.debug = debug  # only debug mode shows where the settings folder is
         self.sandbox = sandbox
         self.http_get = http_get
         self.interactive = interactive
@@ -68,6 +78,12 @@ class Controller(QObject):
         self._animation = QTimer(self, interval=600, timeout=self._animate)
         self._refresh = QTimer(self, singleShot=True, interval=300, timeout=self._refresh_lists)
         self._toast_timer = QTimer(self, singleShot=True, interval=TOAST_QUIET_MS, timeout=self._flush_toast)
+        self.update_info = None
+        self._update_checking = False
+        self._update_result = UpdateRelay(self)
+        self._update_result.finished.connect(self._update_checked)
+        self._update_timer = QTimer(self, interval=updates.CHECK_EVERY_S * 1000,
+                                    timeout=lambda: self.check_updates(manual=False))
         self._theme = None
         self.apply_theme()
         hints = QApplication.styleHints()
@@ -95,6 +111,9 @@ class Controller(QObject):
         self.attention_action = menu.addAction("&Needs attention (0)",
                                                lambda: self.show_window(self.window.attention))
         menu.addAction("Se&ttings", lambda: self.show_window(self.window.folders))
+        menu.addAction("A&bout PaperNym", lambda: self.show_window(self.window.about))
+        self.update_action = menu.addAction("Update available", lambda: self.show_window(self.window.about))
+        self.update_action.setVisible(False)
         menu.addSeparator()
         menu.addAction("&Quit", self.quit)
         self.tray_menu = menu
@@ -167,6 +186,48 @@ class Controller(QObject):
         self.refresh_attention()
         if self.first_run and self.interactive:
             QTimer.singleShot(0, self.run_welcome)
+        if self.interactive:
+            QTimer.singleShot(updates.FIRST_CHECK_AFTER_MS, lambda: self.check_updates(manual=False))
+            self._update_timer.start()
+
+    # Updates -----------------------------------------------------------------------
+    def check_updates(self, manual: bool = True):
+        """Ask GitHub for the latest release on a short background thread."""
+        if self._update_checking or (not manual and not self.config.get("update_check", True)):
+            return
+        self._update_checking = True
+        self.window.about.show_checking()
+        get = self.http_get or HttpClient({"email": ""}).get  # no email for GitHub
+        relay = self._update_result
+
+        def run():
+            try:
+                relay.finished.emit(updates.check(get), "", manual)
+            except Exception as exc:  # offline, rate limit, bad answer: report, never crash
+                relay.finished.emit(None, str(exc), manual)
+
+        threading.Thread(target=run, name="papernym-update-check", daemon=True).start()
+
+    def _update_checked(self, info, error: str, manual: bool):
+        self._update_checking = False
+        if error:
+            log.info("update check failed: %s", error)
+        else:
+            self.update_info = info
+        self.window.about.show_update(info, error)
+        newer = info is not None and info.newer
+        self.update_action.setVisible(newer)
+        if newer:
+            self.update_action.setText(f"Update available: v{info.latest}")
+            if manual or info.latest != self.config.get("skipped_version"):
+                self.window.update_banner.show_update(info)
+        elif manual and not error:
+            self.status("PaperNym is up to date." if info.latest else "No release has been published yet.")
+
+    def skip_version(self, version: str):
+        config = copy.deepcopy(self.config)
+        config["skipped_version"] = version
+        self.save_settings(config, lambda _: self.status(f"You will not be reminded about v{version} again."))
 
     def _history_loaded(self, rows):
         self.window.activity.load_history(rows)
@@ -609,6 +670,7 @@ def main(argv: list[str] | None = None) -> int:
                  " (sandbox)" if args.sandbox else "")
         return 0
     if args.sandbox:
+        os.environ["PAPERNYM_KEYRING"] = "off"  # sandbox keys stay in its temporary folder
         home, papers, count = make_sandbox()
         os.environ["PAPERNYM_HOME"] = str(home)
         welcome = [str(papers)]
@@ -620,7 +682,7 @@ def main(argv: list[str] | None = None) -> int:
         server.listen(name)
     setup_file_log(home, logging.DEBUG if args.debug else logging.INFO)
     try:
-        ctl = Controller(home, sandbox=args.sandbox, welcome_folders=welcome)
+        ctl = Controller(home, sandbox=args.sandbox, welcome_folders=welcome, debug=args.debug)
     except ConfigError as exc:
         QMessageBox.critical(None, "PaperNym", f"The settings file cannot be read:\n\n{exc}")
         return 1

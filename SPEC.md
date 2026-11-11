@@ -137,10 +137,32 @@ Files: `config.json`, `papers.db`, `lock`, `logs/papernym.log` (rotating, 5 x 1 
 | `year` | `citation` (journal volume year, default) or `online` (first-online year) |
 | `title_search` | If `false`, titles are never sent to any service; only DOI and arXiv lookups run |
 | `email` | Sent to Crossref as `mailto` for its polite pool |
+| `update_check`, `skipped_version` | Daily update check on/off; a release the user chose to skip |
 | `theme` | Tray app colours: `system` (follow Windows/Linux light or dark mode), `light` or `dark`. Both themes use the icon colours (teal `#0B5563`, amber `#FFB020`) |
 
-Write `config.json` atomically (write temp file, then replace). The key is stored in plain
-text; say so in the UI.
+Write `config.json` atomically (write temp file, then replace).
+
+**API keys** (`openalex_key`, `s2_key`) are kept out of `config.json` whenever the system has
+a credential store, through the `keyring` package (`core/keystore.py`):
+
+| System | Store |
+|---|---|
+| Windows | Windows Credential Manager (per user, encrypted with the user's login) |
+| Linux desktop | Secret Service over D-Bus: GNOME Keyring, KWallet 5.97+ or KeePassXC |
+| macOS | Keychain |
+| Linux without a desktop session (SSH, server, container), or `PAPERNYM_KEYRING=off` | `config.json`, mode 600; the CLI warns when a key is saved |
+
+- The entry is named `PaperNym` for the normal settings folder and `PaperNym-<hash>` for any
+  other folder (`PAPERNYM_HOME`), so trial folders never overwrite the real key.
+- Precedence when reading: environment variable (`OPENALEX_API_KEY`, `S2_API_KEY`) > credential
+  store > `config.json`. Environment keys are never stored.
+- Keys found in `config.json` while a store is available are moved into it on the next load.
+- If the store refuses a write (for example a locked keyring), saving fails with a message
+  that names the environment variable and `PAPERNYM_KEYRING=off` as alternatives; a key is
+  never silently written in plain text.
+- `--sandbox` sets `PAPERNYM_KEYRING=off`, so sandbox keys stay in its temporary folder.
+- Keys never appear in logs or error messages (`api_key=***`), and the Sources fields hide
+  their text unless being edited.
 
 ### papers.db (SQLite)
 
@@ -570,7 +592,7 @@ Installed command: `papernym`. Running with no arguments prints help.
 | `add-folder PATH [--no-subfolders]` | Watch a folder |
 | `remove-folder PATH` | Stop watching it |
 | `exclude PATTERN` / `exclude --remove PATTERN` | Manage the exclude list |
-| `set-key openalex|semanticscholar KEY` | Store an API key |
+| `set-key openalex|semanticscholar KEY` | Store an API key in the system credential store (or `config.json` where there is none); `show` says where keys live |
 | `set-email EMAIL` | Crossref polite pool |
 | `formats` | List the fixed presets with an example each |
 | `set-format PRESET` | Choose a fixed preset |
@@ -649,7 +671,8 @@ Left-click (double-click on Windows) opens the main window.
 | **Naming** | Preset dropdown listing the fixed presets plus **Custom**. Choosing a preset shows its template read-only. Choosing Custom reveals an editable template field with clickable token buttons, where the user can also type fixed text, and a word-separator choice. Below: title length; year mode. A **live preview** on three sample papers updates as the user types. Invalid templates show the error inline and cannot be saved |
 | **Sources** | OpenAlex key field with a "Get a free key" link and a **Test** button; optional Semantic Scholar key; email; "Search by title" switch with a one-line privacy explanation; "Test all sources" button showing PASS/FAIL per service |
 | **History** | All renames grouped by batch; Undo per row or per batch; export to CSV |
-| **General** | Start at login; show a notification on rename; pause; theme (System, Light, Dark); open the settings folder; open the log; version; check for updates |
+| **General** | Start at login; show a notification on rename; pause; theme (System, Light, Dark); Save diagnostics (a copy of the log with keys, email addresses and the settings path masked). The settings folder path, Open settings folder and Open log appear only with `--debug` |
+| **About** | Icon, name, version, one-line description; links: developer (github.com/Xatta-Trone), project, report a problem (issues), MIT licence; data-source credit; update status, Check for updates now, automatic check on/off |
 
 ### Behaviours
 
@@ -766,8 +789,15 @@ is cloud-synced.
   "remove my settings".
 - Code-sign the executable and the installer. Unsigned builds trigger Windows SmartScreen
   warnings.
-- Update check: on start and daily, compare the version with the latest GitHub release and
-  show "Update available" with a download link. No silent auto-update in version 1.
+- Update check (`core/updates.py`): 30 s after start and then every 24 h (and from About >
+  Check for updates now), one unauthenticated GET to
+  `https://api.github.com/repos/Xatta-Trone/papernym/releases/latest` with only a
+  `PaperNym/<version>` user agent, on a short background thread. Tags are compared as version
+  numbers (`v0.10.0` > `v0.9.0`). A newer release shows a banner (Download, Skip this
+  version) and a tray item; a skipped version only shows again when checked by hand.
+  Failures are logged and shown on the About tab only. "No release yet" is a normal answer.
+  The installed app links to the release page; a pip or source install shows the pip command.
+  Nothing is downloaded or installed automatically in version 1.
 
 ### 15.2 PyPI package (priority 2)
 

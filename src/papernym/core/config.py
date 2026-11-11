@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import tempfile
 from pathlib import Path
 from typing import Callable
 
+from .keystore import SECRET_KEYS, SecretStore, SecretStoreError
 from .naming import PRESETS, TemplateError, validate_template
 
+
+log = logging.getLogger("papernym")
 
 DEFAULTS = {
     "folders": [],
@@ -27,6 +31,8 @@ DEFAULTS = {
     "notify_on_rename": True,
     "paused": False,
     "theme": "system",
+    "update_check": True,
+    "skipped_version": "",
 }
 
 class ConfigError(ValueError):
@@ -87,12 +93,12 @@ def validate_config(config: dict) -> dict:
         raise ConfigError("title_limit must be a nonnegative integer")
     if result["year"] not in ("citation", "online"):
         raise ConfigError("year must be citation or online")
-    for key in ("title_search", "start_at_login", "notify_on_rename", "paused"):
+    for key in ("title_search", "start_at_login", "notify_on_rename", "paused", "update_check"):
         if type(result[key]) is not bool:
             raise ConfigError(f"{key} must be a boolean")
     if result["theme"] not in ("system", "light", "dark"):
         raise ConfigError("theme must be system, light or dark")
-    for key in ("openalex_key", "s2_key", "email"):
+    for key in ("openalex_key", "s2_key", "email", "skipped_version"):
         if not isinstance(result[key], str):
             raise ConfigError(f"{key} must be a string")
     return result
@@ -112,6 +118,16 @@ def load_config(home: str | Path | None = None, *, apply_env: bool = True) -> di
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"cannot read {path}: {exc}") from exc
     result = validate_config(raw)
+    store = SecretStore(settings_dir(home))
+    if store.available():
+        if any(result[key] for key in SECRET_KEYS):
+            save_config(result, home)  # one-time move of plain-text keys into the store
+            log.info("moved API keys from config.json to %s", store.describe())
+        for key in SECRET_KEYS:
+            try:
+                result[key] = store.get(key)
+            except SecretStoreError as exc:
+                log.warning("%s", exc)
     return with_env(result) if apply_env else result
 
 
@@ -125,10 +141,23 @@ def with_env(config: dict) -> dict:
 
 
 def save_config(config: dict, home: str | Path | None = None) -> None:
-    """Atomically replace config.json after validation."""
+    """Atomically replace config.json after validation.
+
+    API keys go to the system credential store when there is one (config.json then holds
+    empty strings); otherwise they stay in config.json, readable only by the user.
+    """
     validated = validate_config(config)
     directory = settings_dir(home)
     directory.mkdir(parents=True, exist_ok=True)
+    store = SecretStore(directory)
+    if store.available():
+        for key in SECRET_KEYS:
+            try:
+                store.set(key, validated[key])
+            except SecretStoreError as exc:
+                raise ConfigError(f"{exc}. Set {SECRET_KEYS[key]} in the environment instead, "
+                                  "or PAPERNYM_KEYRING=off to keep keys in config.json.") from exc
+            validated[key] = ""
     path = directory / "config.json"
     temp_path = None
     try:
@@ -139,6 +168,8 @@ def save_config(config: dict, home: str | Path | None = None) -> None:
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
+        if os.name != "nt" and any(validated[key] for key in SECRET_KEYS):
+            os.chmod(temp_path, 0o600)
         os.replace(temp_path, path)
     finally:
         if temp_path is not None:

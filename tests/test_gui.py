@@ -464,3 +464,70 @@ def test_theme_setting_is_validated(tmp_path):
     with pytest.raises(ConfigError):
         validate_config({**default_config(), "theme": "purple"})
     assert default_config()["theme"] == "system"
+
+
+def test_update_check_shows_banner_tray_item_and_skip(qapp, make_ctl):
+    release = {"tag_name": "v9.9.9", "html_url": "https://github.com/Xatta-Trone/papernym/releases/tag/v9.9.9"}
+
+    def http(url, params=None, headers=None, kind="json"):
+        return release if "api.github.com" in url else fake_http(url, params, headers, kind)
+
+    ctl = make_ctl(http=http)
+    ctl.check_updates(manual=True)
+    assert wait(qapp, lambda: ctl.update_info is not None)
+    assert ctl.update_action.isVisible() and "v9.9.9" in ctl.update_action.text()
+    assert ctl.window.update_banner.isVisibleTo(ctl.window) and "9.9.9 is available" in ctl.window.update_banner.label.text()
+    assert "9.9.9 is available" in ctl.window.about.update_status.text()
+    ctl.window.update_banner.skip.click()
+    assert wait(qapp, lambda: ctl.config["skipped_version"] == "9.9.9")
+    ctl.window.update_banner.hide()
+    ctl.update_info = None
+    ctl.check_updates(manual=False)  # automatic check: the skipped version stays quiet
+    assert wait(qapp, lambda: ctl.update_info is not None)
+    assert not ctl.window.update_banner.isVisibleTo(ctl.window) and ctl.update_action.isVisible()
+
+
+def test_update_check_failure_is_reported_only_on_the_about_tab(qapp, make_ctl):
+    def offline(url, params=None, headers=None, kind="json"):
+        if "api.github.com" in url:
+            raise OSError("network unreachable")
+        return fake_http(url, params, headers, kind)
+
+    ctl = make_ctl(http=offline)
+    ctl.check_updates(manual=True)
+    assert wait(qapp, lambda: "Could not check" in ctl.window.about.update_status.text())
+    assert ctl.window.about.check_button.isEnabled() and not ctl.update_action.isVisible()
+
+
+def test_settings_folder_is_shown_only_in_debug_mode(qapp, make_ctl, monkeypatch):
+    from PySide6.QtWidgets import QLabel, QPushButton
+
+    ctl = make_ctl()
+    texts = [w.text() for w in ctl.window.general.findChildren(QPushButton)] + [w.text() for w in ctl.window.general.findChildren(QLabel)]
+    assert not any("settings folder" in t.lower() for t in texts)
+    assert not any(str(ctl.home) in t for t in texts)
+    ctl.debug = True
+    from papernym.gui.tabs import GeneralTab
+    debug_tab = GeneralTab(ctl)
+    texts = [w.text() for w in debug_tab.findChildren(QPushButton)] + [w.text() for w in debug_tab.findChildren(QLabel)]
+    assert any("settings folder" in t.lower() for t in texts)
+
+
+def test_diagnostics_hide_keys_email_and_settings_path(tmp_path):
+    from papernym.gui.tabs import mask_diagnostics
+
+    home = tmp_path / "PaperNym"
+    log = (f"GET /works?search=x&api_key=SECRET1 failed\nUser-Agent mailto:me@example.org\n"
+           f"database at {home}" + "\\papers.db")
+    masked = mask_diagnostics(log, home)
+    assert "SECRET1" not in masked and "me@example.org" not in masked and str(home) not in masked
+    assert "<settings>" in masked and "api_key=***" in masked
+
+
+def test_sources_key_fields_are_hidden_and_say_where_keys_live(qapp, make_ctl):
+    from PySide6.QtWidgets import QLineEdit
+
+    ctl = make_ctl()
+    sources = ctl.window.sources
+    assert sources.openalex.echoMode() == QLineEdit.PasswordEchoOnEdit
+    assert "not in the settings file" in sources.key_store.text()

@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 import requests
 
 from papernym import __version__
+
+
+_SECRET_PARAM = re.compile(r"((?:api_key|apikey|key|token)=)[^&\s'\"]+", re.IGNORECASE)
+
+
+def mask_secrets(text: str) -> str:
+    """Hide API keys that request errors copy from the URL into their message."""
+    return _SECRET_PARAM.sub(lambda match: match.group(1) + "***", text)
 
 
 class NetError(RuntimeError):
@@ -34,7 +43,7 @@ class HttpClient:
                 if attempt == 0:
                     self.sleep(1)
                     continue
-                raise NetError(str(exc)) from exc
+                raise NetError(mask_secrets(str(exc))) from None
             status = response.status_code
             if status == 200:
                 try:

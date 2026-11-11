@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M5 built; waiting for the owner's manual checklist pass on Windows 11
 - **Next task:** Owner runs `docs/M5_MANUAL_CHECKLIST.md`; then M6 `scripts/build_windows.py`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 215 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 233 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -467,4 +467,11 @@ Newest entry at the bottom. Use this shape:
 - Files: `src/papernym/core/engine.py`, `src/papernym/gui/theme.py`, `src/papernym/gui/icons/*.svg`, `pyproject.toml`, `tests/test_engine.py`, `SPEC.md`, `PROGRESS.md`.
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 215 passed (1 new engine test). Offscreen screenshots of Activity, Folders, Naming and General checked in light and dark.
 - Note: a sandbox that already skipped the pasted originals keeps them as hand-named; start a new sandbox to retry.
+
+### 2026-11-11  M5  Owner request: keys in the credential store, About tab, update check
+- Done: API keys moved out of config.json into the system credential store through `keyring` (`core/keystore.py`): Windows Credential Manager, Linux Secret Service (GNOME Keyring / KWallet / KeePassXC), macOS Keychain. Headless Linux or `PAPERNYM_KEYRING=off` keeps them in config.json with mode 600 and a CLI warning; environment variables still win and are never stored; existing plain-text keys migrate on load; a non-default settings folder uses its own entry name; `--sandbox` never touches the real store. Keys are masked in request errors and logs, and the Sources fields hide them unless edited. General no longer shows the settings folder (path, Open settings folder, Open log) unless `--debug`; Save diagnostics writes a masked log copy instead. New About tab (Ctrl+8, tray "About PaperNym"): version, description, developer link (github.com/Xatta-Trone), project, issues, MIT licence, data credits, update status. Update check (`core/updates.py`) as agreed with the owner: GitHub releases API, 30 s after start then daily, background thread, banner with Download / Skip this version, tray item, no automatic download. MIT `LICENSE`; project URLs, licence and the `keyring` dependency in `pyproject.toml`. Links follow the theme colour (`LinkLabel`).
+- Checked for real: a save, read and delete round trip against Windows Credential Manager with a temporary settings folder (entry `PaperNym-<hash>`, removed afterwards; `cmdkey /list` shows no PaperNym entries).
+- Files: `src/papernym/core/{keystore,updates,config}.py`, `src/papernym/core/sources/http.py`, `src/papernym/cli.py`, `src/papernym/gui/{app,tabs,window,common,dialogs}.py`, `tests/conftest.py` (in-memory keyring for every test), `tests/test_updates.py`, `tests/{test_gui,test_cli,test_config,test_http}.py`, `LICENSE`, `pyproject.toml`, `SPEC.md`, `docs/M5_MANUAL_CHECKLIST.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 233 passed (18 new). Offscreen screenshots of About and Sources checked in light and dark.
+- Note: the repository has no git remote yet; the update check answers that no release has been published until `Xatta-Trone/papernym` has one.
 

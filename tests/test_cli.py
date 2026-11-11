@@ -122,16 +122,25 @@ def test_exclude_add_remove(home, capsys):
 
 def test_set_key_and_environment_keys_never_saved(home, capsys, monkeypatch):
     code, out, _ = run(capsys, "set-key", "openalex", "abc123")
-    assert code == 0 and "plain text" in out
+    assert code == 0 and "saved in" in out and "abc123" not in out
     monkeypatch.setenv("S2_API_KEY", "from-env")
     code, out, _ = run(capsys, "set-key", "semanticscholar", "stored")
     assert "takes precedence" in out
     run(capsys, "set-year", "online")
     raw = json.loads((home / "config.json").read_text(encoding="utf-8"))
-    assert raw["openalex_key"] == "abc123" and raw["s2_key"] == "stored"
+    assert raw["openalex_key"] == "" and raw["s2_key"] == ""  # keys live in the credential store
+    stored = load_config(home, apply_env=False)
+    assert stored["openalex_key"] == "abc123" and stored["s2_key"] == "stored"
+    assert "set (in" in run(capsys, "show")[1]
     run(capsys, "set-key", "semanticscholar", "")
-    raw = json.loads((home / "config.json").read_text(encoding="utf-8"))
-    assert raw["s2_key"] == ""  # the environment key was not written
+    assert load_config(home, apply_env=False)["s2_key"] == ""  # the environment key was not stored
+
+
+def test_set_key_without_a_credential_store_warns_and_keeps_config(home, capsys, monkeypatch):
+    monkeypatch.setenv("PAPERNYM_KEYRING", "off")
+    code, out, _ = run(capsys, "set-key", "openalex", "abc123")
+    assert code == 0 and "no system credential store" in out
+    assert json.loads((home / "config.json").read_text(encoding="utf-8"))["openalex_key"] == "abc123"
 
 
 def test_set_email(home, capsys):

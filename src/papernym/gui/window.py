@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QMainWindow, QPushButton, QTabWidget,
                                QVBoxLayout, QWidget)
 
 from .common import app_icon
-from .tabs import (ActivityTab, AttentionTab, FoldersTab, GeneralTab, HistoryTab, NamingTab,
-                   SourcesTab)
+from ..core import updates
+from .tabs import (AboutTab, ActivityTab, AttentionTab, FoldersTab, GeneralTab, HistoryTab,
+                   NamingTab, SourcesTab)
 
 class Banner(QWidget):
     """A dismissible, non-blocking message line (text first, so it never relies on colour)."""
@@ -32,6 +33,36 @@ class Banner(QWidget):
         self.show()
 
 
+class UpdateBanner(Banner):
+    """'Version X is available' with Download and Skip this version."""
+
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        self.info = None
+        layout = self.layout()
+        self.download = QPushButton("Do&wnload")
+        self.download.clicked.connect(self._download)
+        self.skip = QPushButton("S&kip this version")
+        self.skip.clicked.connect(self._skip)
+        layout.insertWidget(1, self.download)
+        layout.insertWidget(2, self.skip)
+
+    def show_update(self, info):
+        self.info = info
+        self.show_message(f"PaperNym {info.latest} is available (you have {info.current}). "
+                          f"{updates.how_to_update()}")
+
+    def _download(self):
+        QDesktopServices.openUrl(QUrl(self.info.url if self.info else updates.RELEASES_URL))
+        self.hide()
+
+    def _skip(self):
+        if self.info:
+            self.ctl.skip_version(self.info.latest)
+        self.hide()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, ctl):
         super().__init__()
@@ -42,13 +73,16 @@ class MainWindow(QMainWindow):
         central = QWidget()
         layout = QVBoxLayout(central)
         if ctl.sandbox:
-            sandbox = QLabel(f"SANDBOX: temporary settings in {ctl.home}; "
+            where = f" in {ctl.home}" if ctl.debug else ""
+            sandbox = QLabel(f"SANDBOX: temporary settings{where}; "
                              "only a temporary copy of the sample papers is watched.")
             sandbox.setObjectName("banner")
             sandbox.setWordWrap(True)
             layout.addWidget(sandbox)
         self.outage = Banner()
         self.notice = Banner()
+        self.update_banner = UpdateBanner(ctl)
+        layout.addWidget(self.update_banner)
         layout.addWidget(self.outage)
         layout.addWidget(self.notice)
         self.tabs = QTabWidget()
@@ -59,10 +93,11 @@ class MainWindow(QMainWindow):
         self.sources = SourcesTab(ctl)
         self.history = HistoryTab(ctl)
         self.general = GeneralTab(ctl)
+        self.about = AboutTab(ctl)
         for widget, title in ((self.activity, "&Activity"), (self.attention, "Needs a&ttention"),
                               (self.folders, "&Folders"), (self.naming, "&Naming"),
                               (self.sources, "S&ources"), (self.history, "&History"),
-                              (self.general, "&General")):
+                              (self.general, "&General"), (self.about, "A&bout")):
             self.tabs.addTab(widget, title)
         layout.addWidget(self.tabs)
         self.setCentralWidget(central)

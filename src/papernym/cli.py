@@ -18,6 +18,7 @@ from .core.config import (ConfigError, add_folder, load_config, save_config, set
 from .core.db import Database, DatabaseError
 from .core.identify import (ARXIV_SOURCES, DOI_SOURCES, TITLE_SOURCES, Identifier,
                             title_hit_ok, title_in_text)
+from .core.keystore import SecretStore
 from .core.lock import LockBusyError, WriterLock
 from .core.logsetup import setup_file_log
 from .core.naming import PRESETS, TemplateError, render_preset, validate_template
@@ -240,9 +241,14 @@ def cmd_set_key(ctx: Context) -> int:
     config = ctx.settings()
     config[key_name] = ctx.args.key.strip()
     ctx.save(config)
-    if config[key_name]:
+    store = SecretStore(ctx.home)
+    if config[key_name] and store.available():
+        ctx.out.line(f"{ctx.args.service} key saved in {store.describe()}", "ok")
+    elif config[key_name]:
         ctx.out.line(f"{ctx.args.service} key saved", "ok")
-        ctx.out.line(f"the key is stored in plain text in {ctx.home / 'config.json'}", "warn")
+        ctx.out.line("no system credential store found, so the key is in config.json "
+                     "(readable only by you). Install and unlock a keyring such as GNOME Keyring "
+                     f"or KWallet, or set {variable} in the environment instead.", "warn")
     else:
         ctx.out.line(f"{ctx.args.service} key removed", "ok")
     if variable in os.environ:
@@ -351,10 +357,10 @@ def cmd_set_title_search(ctx: Context) -> int:
     return 0
 
 
-def _key_state(stored: str, variable: str) -> str:
+def _key_state(stored: str, variable: str, where: str) -> str:
     if os.environ.get(variable):
         return f"set (from {variable})"
-    return "set" if stored else "not set"
+    return f"set (in {where})" if stored else "not set"
 
 
 def cmd_show(ctx: Context) -> int:
@@ -381,8 +387,10 @@ def cmd_show(ctx: Context) -> int:
     out.line(f"Year:         {config['year']}")
     out.line(f"Title search: {'on' if config['title_search'] else 'off'}")
     out.line(f"Email:        {config['email'] or 'not set'}")
-    out.line(f"OpenAlex key: {_key_state(config['openalex_key'], 'OPENALEX_API_KEY')}")
-    out.line(f"S2 key:       {_key_state(config['s2_key'], 'S2_API_KEY')}")
+    where = SecretStore(ctx.home).describe()
+    out.line(f"OpenAlex key: {_key_state(config['openalex_key'], 'OPENALEX_API_KEY', where)}")
+    out.line(f"S2 key:       {_key_state(config['s2_key'], 'S2_API_KEY', where)}")
+    out.line(f"Key store:    {where}")
     if config["paused"]:
         out.line("Paused:       yes (the watcher ignores new files)")
     return 0

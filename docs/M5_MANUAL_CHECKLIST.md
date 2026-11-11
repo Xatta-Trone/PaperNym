@@ -45,3 +45,6 @@ nothing real is touched, and start at login is disabled. Tick each line after ch
 - [ ] The UI stays responsive during a scan
 - [ ] Theme: General > Theme switches Light / Dark at once; System follows the Windows setting (Settings > Personalisation > Colours) while the app is open; text stays readable in both
 - [ ] Single instance: running `papernym-gui --sandbox --show` a second time brings the first window forward; only one sandbox tray icon
+- [ ] Keys: set an OpenAlex key in Sources (normal run, not sandbox); it appears in Windows Credential Manager > Windows Credentials as `PaperNym`, config.json keeps an empty `openalex_key`, and `papernym show` says `set (in Windows Credential Manager)`
+- [ ] General shows no settings folder path or Open settings folder without `--debug`; with `--debug` they appear; Save diagnostics writes a masked log copy
+- [ ] About (Ctrl+8): links open the developer page, project, issues and licence; Check for updates now reports that no release has been published yet until the first release

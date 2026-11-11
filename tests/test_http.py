@@ -69,3 +69,22 @@ def test_repeat_failure_raises_net_error():
         HttpClient({}, session=session, sleep=lambda _: None).get("https://example.org")
     assert error.value.status == 500
     assert len(session.calls) == 2
+
+
+def test_errors_never_carry_the_api_key():
+    import requests
+
+    from papernym.core.sources.http import HttpClient, NetError
+
+    class Broken:
+        def get(self, url, params=None, headers=None, timeout=None):
+            raise requests.ConnectionError(f"Max retries exceeded with url: /works?search=x&api_key=SECRET123 ({url})")
+
+    client = HttpClient({"email": ""}, session=Broken(), sleep=lambda _: None)
+    try:
+        client.get("https://api.openalex.org/works", params={"api_key": "SECRET123"})
+    except NetError as exc:
+        assert "SECRET123" not in str(exc) and "api_key=***" in str(exc)
+        assert exc.__cause__ is None
+    else:
+        raise AssertionError("expected NetError")

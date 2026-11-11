@@ -25,7 +25,38 @@ def test_round_trip_and_environment_overrides(tmp_path, monkeypatch):
     assert loaded["folders"] == saved["folders"]
     assert loaded["openalex_key"] == "env-key"
     assert loaded["s2_key"] == "s2-env"
-    assert json.loads((tmp_path / "config.json").read_text())["openalex_key"] == "stored"
+    assert json.loads((tmp_path / "config.json").read_text())["openalex_key"] == ""
+    assert config.load_config(apply_env=False)["openalex_key"] == "stored"
+
+
+def test_plain_text_keys_move_to_the_credential_store(tmp_path, memory_keyring):
+    from papernym.core.keystore import service_name
+
+    (tmp_path / "config.json").write_text(json.dumps({"openalex_key": "old", "s2_key": ""}))
+    assert config.load_config(tmp_path, apply_env=False)["openalex_key"] == "old"
+    assert json.loads((tmp_path / "config.json").read_text())["openalex_key"] == ""
+    service = service_name(tmp_path)
+    assert service.startswith("PaperNym-")  # a non-default folder never shares the real entry
+    assert memory_keyring.items == {(service, "openalex_key"): "old"}
+
+
+def test_default_settings_folder_uses_the_plain_service_name(monkeypatch, tmp_path):
+    from papernym.core.keystore import service_name
+
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setenv("PAPERNYM_HOME", str(tmp_path / "elsewhere"))
+    assert service_name(tmp_path / "PaperNym") == "PaperNym"
+    assert service_name(tmp_path / "elsewhere") != "PaperNym"
+
+
+def test_keys_stay_in_config_when_the_store_is_off(tmp_path, monkeypatch, memory_keyring):
+    monkeypatch.setenv("PAPERNYM_KEYRING", "off")
+    saved = config.default_config()
+    saved["s2_key"] = "plain"
+    config.save_config(saved, tmp_path)
+    assert json.loads((tmp_path / "config.json").read_text())["s2_key"] == "plain"
+    assert memory_keyring.items == {}
 
 
 @pytest.mark.parametrize("change", [

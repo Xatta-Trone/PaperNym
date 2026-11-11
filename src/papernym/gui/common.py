@@ -7,8 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QUrl
-from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
+from PySide6.QtCore import QEvent, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QIcon, QPalette, QPixmap
+from PySide6.QtWidgets import QLabel
 
 ICONS = Path(__file__).resolve().parent / "icons"
 TRAY_STATES = ("watching", "paused", "working", "attention", "error")
@@ -59,3 +60,25 @@ def show_in_folder(path: str | Path):
 
 def short(path: str) -> str:
     return os.path.basename(path) if path else ""
+
+
+class LinkLabel(QLabel):
+    """A web link whose colour follows the theme (rich text keeps the colour it was set with)."""
+
+    def __init__(self, text: str, url: str, parent=None):
+        super().__init__(parent)
+        self.link_text, self.url = text, url
+        self.setOpenExternalLinks(True)
+        self.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.setToolTip(url)
+        self._paint()
+
+    def _paint(self):
+        colour = self.palette().color(QPalette.Link).name()
+        self.setText(f'<a href="{self.url}" style="color:{colour}">{self.link_text}</a>')
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.PaletteChange:
+            self._paint()
+        super().changeEvent(event)
+
