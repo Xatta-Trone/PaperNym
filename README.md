@@ -116,26 +116,76 @@ is installed; without a tray, PaperNym keeps its window open and closing it quit
 
 ### With pip (Python 3.10+)
 
-PaperNym is on [PyPI](https://pypi.org/project/papernym/). [pipx](https://pipx.pypa.io)
-installs it in its own environment and puts the commands on your `PATH`:
+PaperNym is on [PyPI](https://pypi.org/project/papernym/):
 
 ```bash
-pipx install "papernym[gui]"      # command line and tray app
-pipx install papernym             # command line only
-```
-
-Or with pip, ideally inside a virtual environment:
-
-```bash
-pip install "papernym[gui]"
+pip install "papernym[gui]"       # command line and tray app
+pip install papernym              # command line only
 ```
 
 This gives you `papernym` (command line) and `papernym-gui` (tray app). Upgrade with
-`pipx upgrade papernym` or `pip install -U papernym`. On Linux, the tray app adds itself to
-your app menu the first time it runs (or run `papernym menu-entry`).
+`pip install -U "papernym[gui]"`.
 
-Windows and Ubuntu are tested. The command line is plain Python and should work on macOS
-too, but it has not been tested there.
+If pip stops with **externally-managed-environment** (Homebrew Python on macOS, Ubuntu
+23.04 and newer), or you want PaperNym kept apart from your other Python packages, use
+[pipx](https://pipx.pypa.io) instead. It gives PaperNym its own environment and puts the
+commands on your `PATH`:
+
+```bash
+pipx install "papernym[gui]"      # upgrade with: pipx upgrade papernym
+```
+
+On Linux, the tray app adds itself to your app menu the first time it runs (or run
+`papernym menu-entry`). On macOS, see the steps below.
+
+### macOS
+
+There is no Mac installer yet. PaperNym installs from PyPI with Python, in about five
+minutes, and then opens like any other app.
+
+1. **Get Python 3.10 or newer.** Open **Terminal** (Applications → Utilities) and run
+   `python3 --version`. If it prints 3.10 or higher, go to step 2. Otherwise install the
+   latest Python from [python.org](https://www.python.org/downloads/macos/) (the macOS
+   installer); the `python3` that comes with Apple's developer tools is too old.
+
+2. **Install PaperNym:**
+
+   ```bash
+   python3 -m pip install "papernym[gui]"
+   ```
+
+   If this stops with **externally-managed-environment** (Python from Homebrew), use pipx
+   instead: `brew install pipx`, `pipx ensurepath`, open a new Terminal window, then
+   `pipx install "papernym[gui]"`.
+
+3. **Start it once from Terminal:**
+
+   ```bash
+   papernym-gui
+   ```
+
+   (If the command is not found, run `python3 -m papernym.gui`.) PaperNym moves to the
+   background, so you can close Terminal, and its icon appears in the **menu bar** at the top
+   right of the screen. The setup wizard asks which folders to watch.
+
+4. **From now on, open it like any app.** PaperNym adds itself to `~/Applications`, so it
+   opens from **Spotlight** (Cmd+Space, type *PaperNym*), Launchpad or the Dock. To start it
+   automatically, turn on **Start at login** in its settings.
+
+Good to know:
+
+- macOS may ask whether **Python** may access your Downloads (or Documents, Desktop) folder.
+  Click **Allow**: PaperNym runs on Python, so the request carries Python's name. If you
+  clicked *Don't Allow*, turn it on again under **System Settings → Privacy & Security →
+  Files and Folders**.
+- While it runs, the Dock and the menu at the top may show **Python** instead of PaperNym.
+- Upgrade with `python3 -m pip install -U "papernym[gui]"` (or `pipx upgrade papernym`),
+  then quit PaperNym from its menu-bar icon and open it again.
+- Settings are in `~/.config/PaperNym`.
+
+Windows and Ubuntu are tested on real machines. On macOS the automated tests pass, but the
+app has not yet been tried on a real Mac: please
+[open an issue](https://github.com/Xatta-Trone/papernym/issues) if something does not work.
 
 ## Getting started
 
@@ -344,11 +394,12 @@ are never touched.
 On Ubuntu or Debian: `sudo apt remove papernym`. If you turned on Start at login, also
 delete `~/.config/autostart/papernym.desktop`.
 
-Installed with pip or pipx: `pipx uninstall papernym` or `pip uninstall papernym`. On
-Linux, run `papernym menu-entry --remove` first to remove the app-menu entry.
+Installed with pip or pipx: first turn off **Start at login** in the app's settings and run
+`papernym menu-entry --remove` (Linux: the app-menu entry; macOS: `~/Applications/PaperNym.app`),
+then `pip uninstall papernym` or `pipx uninstall papernym`.
 
-Settings stay in the folder shown by `papernym show` (Windows: `%APPDATA%\PaperNym`, Linux:
-`~/.config/PaperNym`); delete it by hand if you no longer need them. Your PDFs are never
+Settings stay in the folder shown by `papernym show` (Windows: `%APPDATA%\PaperNym`, Linux
+and macOS: `~/.config/PaperNym`); delete it by hand if you no longer need them. Your PDFs are never
 touched.
 
 ## Development
@@ -377,10 +428,13 @@ Done:
 
 - Windows tray app, command line and installer
 - PyPI package (`pip install papernym` / `pipx install papernym`)
+- Ubuntu and Debian `.deb` package
+- macOS through pip, with a menu-bar app and an `~/Applications` launcher
 
 Planned:
 
 - Code-signed Windows releases
+- A Mac app (`.dmg`) once the pip version has been tried on real Macs
 - Packages for other Linux distributions (Flatpak or AppImage)
 
 What changed in each version is in the

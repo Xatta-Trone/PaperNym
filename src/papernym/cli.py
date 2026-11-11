@@ -356,16 +356,19 @@ def _key_state(stored: str, variable: str, where: str) -> str:
 def cmd_menu_entry(ctx: Context) -> int:
     from .core import autostart
 
-    if not sys.platform.startswith("linux"):
-        raise CliError("menu-entry is for Linux; the Windows installer adds the Start-menu entry")
+    if not autostart.needs_menu_entry():
+        raise CliError("menu-entry is for pip installs on Linux and macOS; "
+                       "the Windows installer and the .deb add their own entry")
+    where = autostart.launcher_path()
     if ctx.args.remove:
         removed = autostart.remove_menu_entry()
-        ctx.out.line(f"Removed {autostart.menu_file()}" if removed else "No menu entry to remove")
+        ctx.out.line(f"Removed {where}" if removed else "No launcher to remove")
         return 0
     if importlib.util.find_spec("PySide6") is None:
-        raise CliError('the tray app is not installed; install it with: pipx install "papernym[gui]"')
+        raise CliError('the tray app is not installed; install it with: pip install "papernym[gui]"')
     autostart.install_menu_entry()
-    ctx.out.line(f"PaperNym is in your app menu ({autostart.menu_file()})")
+    place = "Applications (open it from Spotlight or Launchpad)" if autostart.is_macos() else "your app menu"
+    ctx.out.line(f"PaperNym is in {place}: {where}")
     return 0
 
 
@@ -715,8 +718,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = command("set-title-search", cmd_set_title_search, "Allow sending titles to search services")
     p.add_argument("state", choices=["on", "off"])
     command("show", cmd_show, "Print settings, folders and the settings-folder path")
-    p = command("menu-entry", cmd_menu_entry, "Add PaperNym to the Linux app menu (pip/pipx installs)")
-    p.add_argument("--remove", action="store_true", help="remove the menu entry instead")
+    p = command("menu-entry", cmd_menu_entry, "pip installs: add PaperNym to the Linux app menu, or to ~/Applications on macOS")
+    p.add_argument("--remove", action="store_true", help="remove the launcher instead")
     p = command("scan", cmd_scan, "Process every PDF in the watched folders, or in FOLDER, once")
     p.add_argument("folder", nargs="?",
                    help="scan only this folder (e.g. . for the current one); it is not added to the watch list")
