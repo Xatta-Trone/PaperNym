@@ -29,6 +29,45 @@ PRESETS = {
 }
 
 
+class TemplateError(ValueError):
+    """A custom name template violates a naming rule."""
+
+
+def validate_template(template: str) -> list[str]:
+    """Validate a template and return non-blocking warnings."""
+    if not isinstance(template, str) or not template:
+        raise TemplateError("template must be a nonempty string")
+    if template[0] in " ." or template[-1] in " .":
+        raise TemplateError("template must not start or end with a space or dot")
+    fixed = []
+    tokens = []
+    index = 0
+    while index < len(template):
+        char = template[index]
+        if char == "}":
+            raise TemplateError("unbalanced braces")
+        if char == "{":
+            end = template.find("}", index + 1)
+            if end < 0 or "{" in template[index + 1:end]:
+                raise TemplateError("unbalanced or nested braces")
+            token = template[index + 1:end]
+            if token not in TOKENS:
+                raise TemplateError(f"unknown token: {{{token}}}")
+            tokens.append(token)
+            index = end + 1
+            continue
+        if not (char.isalpha() or char.isdigit() or char in " _-.,()[]+&'"):
+            raise TemplateError(f"invalid fixed character: {char!r}")
+        fixed.append(char)
+        index += 1
+    if not tokens:
+        raise TemplateError("template needs at least one token")
+    if len(fixed) > 60:
+        raise TemplateError("fixed text must be at most 60 characters")
+    return ([] if "title" in tokens or "shorttitle" in tokens else
+            ["Template has no title token; names may collide."])
+
+
 def clean_field(value: object, word_sep: str = "_") -> str:
     """Clean one metadata field while retaining wholly non-Latin text."""
     if word_sep not in ("_", " ", "-", ""):
@@ -82,4 +121,12 @@ def render_preset(name: str, meta: dict, year_mode: str = "citation") -> str:
         title_words = clean_field(meta.get("title", ""), " ").split()[:6]
         values["shorttitle"] = "".join(word.capitalize() for word in title_words)
         values["author"] = values["author"].capitalize()
+    return _render_stem(template, values) + ".pdf"
+
+
+def render_custom(template: str, meta: dict, word_sep: str = "_",
+                  year_mode: str = "citation") -> str:
+    """Render a validated custom template, preserving its fixed text."""
+    validate_template(template)
+    values = token_values(meta, year_mode, word_sep)
     return _render_stem(template, values) + ".pdf"

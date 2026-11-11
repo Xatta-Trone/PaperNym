@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/naming.py` custom templates and validation
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 18 passed
+- **Next task:** `core/naming.py` length budget and whole-word cut
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py tests/test_config.py` — 48 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -35,7 +35,7 @@ Rules:
 - [x] `core/lock.py`: single-writer lock (Windows and Linux)
 - [x] `core/naming.py`: tokens, field cleaning, non-Latin fallback
 - [x] `core/naming.py`: the 15 fixed presets (SPEC section 7)
-- [ ] `core/naming.py`: custom templates with fixed text, and every validation rule
+- [x] `core/naming.py`: custom templates with fixed text, and every validation rule
 - [ ] `core/naming.py`: length budget (255 name, Windows 259 path), whole-word cut
 - [ ] `core/naming.py`: collision rules (`_dupN` for the same paper, title extension for different papers)
 
@@ -209,3 +209,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 18 passed, including one exact-name case per preset.
 - Decisions: Store presets as immutable template/separator pairs in code; the length budget is the later M1 task.
 - Next: Add custom templates and all validation rules.
+
+### 2026-11-10  M1  Validate custom templates
+- Done: Added custom token/fixed-text rendering, strict brace and character validation, the 60-character fixed-text limit, and collision warnings when no title token is present. Configuration now uses the same validator.
+- Files: `src/papernym/core/naming.py`, `src/papernym/core/config.py`, `tests/test_naming.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py tests/test_config.py` — 48 passed.
+- Decisions: Return a warning for valid templates without title tokens, while invalid templates raise `TemplateError` with a reason.
+- Next: Enforce name and path budgets with whole-word title cuts.

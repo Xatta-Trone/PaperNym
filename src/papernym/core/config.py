@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 import tempfile
 from pathlib import Path
+
+from .naming import TemplateError, validate_template
 
 
 DEFAULTS = {
@@ -25,11 +26,6 @@ DEFAULTS = {
     "notify_on_rename": True,
     "paused": False,
 }
-
-TOKENS = frozenset({"year", "author", "authors", "title", "shorttitle", "journal"})
-_TOKEN = re.compile(r"\{([^{}]+)\}")
-_FIXED = re.compile(r"^[\w\d _.,()\[\]+&'\-]*$", re.UNICODE)
-
 
 class ConfigError(ValueError):
     """Settings could not be loaded or validated."""
@@ -54,17 +50,10 @@ def default_config() -> dict:
 
 
 def _validate_template(template: str) -> None:
-    # Naming provides the full validator in M1; keep config's guard strict too.
-    if not template or template[0] in " ." or template[-1] in " .":
-        raise ConfigError("format must not be empty or start/end with a space or dot")
-    fixed = _TOKEN.sub("", template)
-    if "{" in fixed or "}" in fixed:
-        raise ConfigError("format has unbalanced or nested braces")
-    tokens = _TOKEN.findall(template)
-    if not tokens or any(token not in TOKENS for token in tokens):
-        raise ConfigError("format needs at least one of the six known tokens")
-    if len(fixed) > 60 or not _FIXED.fullmatch(fixed) or any(ord(c) < 32 for c in fixed):
-        raise ConfigError("format contains invalid or too much fixed text")
+    try:
+        validate_template(template)
+    except TemplateError as exc:
+        raise ConfigError(f"invalid format: {exc}") from exc
 
 
 def validate_config(config: dict) -> dict:

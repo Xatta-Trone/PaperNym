@@ -59,3 +59,27 @@ def test_every_preset(preset, expected):
     meta["authors"] = ["Smith", "Jones", "Lee"]
     assert len(naming.PRESETS) == 15
     assert naming.render_preset(preset, meta) == expected
+
+
+def test_custom_template_keeps_fixed_text_and_warns_on_collisions():
+    meta = sample_meta()
+    assert naming.render_custom("{year}_{author}_{title}_MyLab", meta) == (
+        "2025_Bermudez_Deep_learning_for_crash_severity_prediction_MyLab.pdf")
+    assert naming.render_custom("[{journal}] {author} {year} - {shorttitle}", meta, " ") == (
+        "[Accid Anal Prev] Bermudez 2025 - Deep learning for crash severity prediction.pdf")
+    assert naming.validate_template("{author}_{year}") == [
+        "Template has no title token; names may collide."]
+
+
+@pytest.mark.parametrize("template,reason", [
+    ("plain", "at least one token"), ("{unknown}", "unknown token"),
+    ("{year", "unbalanced"), ("year}", "unbalanced"),
+    ("{{year}}", "nested"), ("{year}{title}}", "unbalanced"),
+    ("{year}/x", "invalid fixed"), ("{year}\\x", "invalid fixed"),
+    ("{year}:x", "invalid fixed"), ("{year}?x", "invalid fixed"),
+    ("{year}\nx", "invalid fixed"), (" {year}", "start or end"),
+    ("{year}.", "start or end"), ("{year}" + "x" * 61, "at most 60"),
+])
+def test_custom_template_rejections(template, reason):
+    with pytest.raises(naming.TemplateError, match=reason):
+        naming.validate_template(template)
