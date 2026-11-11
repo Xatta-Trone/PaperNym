@@ -2,7 +2,7 @@
 
 All notable changes to PaperNym. Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.1.4 — 2026-11-11
 
 - Linux: a `.deb` package for Ubuntu 22.04+ and Debian 12+ on each release, with the tray
   app, the command line, an app-menu entry and icons. The tests now also run on Ubuntu.
