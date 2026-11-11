@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/naming.py` tokens, field cleaning, non-Latin fallback
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_lock.py` — 2 passed
+- **Next task:** `core/naming.py` 15 fixed presets
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 3 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -33,7 +33,7 @@ Rules:
 - [x] `core/db.py`: schema, WAL, queries, daily backup, corrupt-database handling
 - [x] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
 - [x] `core/lock.py`: single-writer lock (Windows and Linux)
-- [ ] `core/naming.py`: tokens, field cleaning, non-Latin fallback
+- [x] `core/naming.py`: tokens, field cleaning, non-Latin fallback
 - [ ] `core/naming.py`: the 15 fixed presets (SPEC section 7)
 - [ ] `core/naming.py`: custom templates with fixed text, and every validation rule
 - [ ] `core/naming.py`: length budget (255 name, Windows 259 path), whole-word cut
@@ -195,3 +195,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_lock.py` — 2 passed; a second process could not acquire a held lock.
 - Decisions: Keep the lock file in the settings folder and let the OS release it if the process exits.
 - Next: Implement naming tokens and field cleaning.
+
+### 2026-11-10  M1  Add naming fields
+- Done: Added the six token values, accent folding, HTML removal, separator handling, and a Unicode fallback for wholly non-Latin fields.
+- Files: `src/papernym/core/naming.py`, `tests/test_naming.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 3 passed.
+- Decisions: Use the journal text provided by metadata sources; Crossref's short-container-title is already preferred by the source mapping.
+- Next: Add the 15 fixed naming presets.
