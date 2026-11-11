@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/db.py` migration from prototype files
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 4 passed
+- **Next task:** `core/lock.py` single-writer lock
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 7 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -31,7 +31,7 @@ Rules:
 ### M1 Core, part 1
 - [x] `core/config.py`: load, save (atomic), defaults, validation, env overrides
 - [x] `core/db.py`: schema, WAL, queries, daily backup, corrupt-database handling
-- [ ] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
+- [x] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
 - [ ] `core/lock.py`: single-writer lock (Windows and Linux)
 - [ ] `core/naming.py`: tokens, field cleaning, non-Latin fallback
 - [ ] `core/naming.py`: the 15 fixed presets (SPEC section 7)
@@ -181,3 +181,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 4 passed with temporary databases. An initial failure exposed an open backup connection on Windows; fixed and reran successfully.
 - Decisions: Use SQLite's backup API for a consistent backup; refuse an unreadable database when no valid backup exists.
 - Next: Import the prototype state, history, and config on first run.
+
+### 2026-11-10  M1  Migrate prototype data
+- Done: Added first-run import of prototype state, history, and settings from the adjacent `PaperRenamer` folder, then renamed imported files to `.bak`.
+- Files: `src/papernym/core/db.py`, `tests/test_db.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 7 passed, including both state formats and malformed input.
+- Decisions: Use `title:<normalised title>` IDs for legacy records because the prototype state did not retain DOI IDs; preserve originals if parsing fails.
+- Next: Implement the cross-platform single-writer lock.

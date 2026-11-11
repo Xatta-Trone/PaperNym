@@ -1,4 +1,6 @@
 import os
+import csv
+import json
 import sqlite3
 import time
 
@@ -70,3 +72,53 @@ def test_corruption_without_backup_stops(tmp_path):
     with pytest.raises(DatabaseError, match="corrupt"):
         Database(tmp_path)
     assert (tmp_path / "papers.db").read_bytes() == b"broken sqlite"
+
+
+def test_prototype_migration_imports_state_history_and_config(tmp_path):
+    old = tmp_path / "PaperRenamer"
+    old.mkdir()
+    home = tmp_path / "PaperNym"
+    legacy_path = str(tmp_path / "named.pdf")
+    state = {"version": 2, "files": {legacy_path: {"path": legacy_path,
+        "fp": "fingerprint", "sig": [100, 99], "status": "ok", "attempts": 2,
+        "given": "named.pdf", "meta": {"title": "Test Article", "year": 2025,
+        "year_online": 2024, "authors": ["Smith"], "journal": "J", "source": "crossref"}}}}
+    (old / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    with (old / "history.csv").open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["time", "old_path", "new_path", "source", "status", "batch"])
+        writer.writeheader()
+        writer.writerow({"time": "now", "old_path": "old.pdf", "new_path": legacy_path,
+                         "source": "crossref", "status": "ok", "batch": "b"})
+    (old / "config.json").write_text(json.dumps({"year": "online"}), encoding="utf-8")
+    with Database(home) as db:
+        assert db.get_file(legacy_path)["given_name"] == "named.pdf"
+        assert db.get_file(legacy_path)["paper_id"] == "title:test article"
+        assert db.get_paper("title:test article")["year_online"] == 2024
+        assert len(db.history("b")) == 1
+    assert json.loads((home / "config.json").read_text())["year"] == "online"
+    for name in ("state.json", "history.csv", "config.json"):
+        assert not (old / name).exists()
+        assert (old / (name + ".bak")).exists()
+    with Database(home) as db:
+        assert len(db.history()) == 1
+
+
+def test_older_prototype_state_format(tmp_path):
+    old = tmp_path / "PaperRenamer"
+    old.mkdir()
+    path = str(tmp_path / "old.pdf")
+    (old / "state.json").write_text(json.dumps({"hash": {"path": path, "status": "check",
+        "meta": {"title": "Older Article", "year": 2022, "authors": [], "source": "pdf-only"}}}))
+    with Database(tmp_path / "PaperNym") as db:
+        assert db.get_file(path)["given_name"] == "old.pdf"
+        assert db.get_file(path)["fingerprint"] == "hash"
+
+
+def test_bad_prototype_data_is_not_backed_up(tmp_path):
+    old = tmp_path / "PaperRenamer"
+    old.mkdir()
+    (old / "state.json").write_text("{bad", encoding="utf-8")
+    with pytest.raises(DatabaseError, match="cannot migrate"):
+        Database(tmp_path / "PaperNym")
+    assert (old / "state.json").exists()
+    assert not (old / "state.json.bak").exists()

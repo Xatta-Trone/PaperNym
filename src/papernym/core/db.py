@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import datetime as dt
+import csv
+import json
 import os
+import re
 import shutil
 import sqlite3
+import unicodedata
 from pathlib import Path
 
-from .config import settings_dir
+from .config import save_config, settings_dir, validate_config
 
 
 SCHEMA_VERSION = 1
@@ -77,10 +81,13 @@ class Database:
             version = self.conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0]
             if int(version) != SCHEMA_VERSION:
                 raise DatabaseError(f"unsupported database schema version {version}")
+            self.migrate_prototype()
             self.backup_daily()
-        except (sqlite3.DatabaseError, ValueError) as exc:
+        except (sqlite3.DatabaseError, ValueError, DatabaseError) as exc:
             if hasattr(self, "conn"):
                 self.conn.close()
+            if isinstance(exc, DatabaseError):
+                raise
             raise DatabaseError(f"cannot open {self.path}: {exc}") from exc
 
     def close(self) -> None:
@@ -177,3 +184,74 @@ class Database:
         with self.conn:
             self.conn.execute("INSERT INTO misses VALUES (?,?) ON CONFLICT(ident) DO UPDATE SET checked_at=excluded.checked_at",
                               (ident, checked_at))
+
+    def migrate_prototype(self) -> bool:
+        """Import adjacent PaperRenamer files once, then preserve them as .bak."""
+        legacy = self.home.parent / "PaperRenamer"
+        sources = [legacy / name for name in ("state.json", "history.csv", "config.json")]
+        present = [path for path in sources if path.exists()]
+        if not present:
+            return False
+        marker = self.conn.execute("SELECT value FROM meta WHERE key='prototype_migrated'").fetchone()
+        if marker:
+            return False
+        for path in present:
+            if path.with_name(path.name + ".bak").exists():
+                raise DatabaseError(f"cannot migrate {path}: .bak already exists")
+        try:
+            state = json.loads(sources[0].read_text(encoding="utf-8")) if sources[0].exists() else {}
+            with sources[1].open(encoding="utf-8", newline="") if sources[1].exists() else _empty_csv() as stream:
+                history = list(csv.DictReader(stream))
+            old_config = json.loads(sources[2].read_text(encoding="utf-8")) if sources[2].exists() else None
+            if old_config is not None:
+                old_config = validate_config(old_config)
+            records = state.get("files", {}) if "files" in state else state
+            if not isinstance(records, dict):
+                raise ValueError("state files must be an object")
+            now = dt.datetime.now(dt.timezone.utc).isoformat()
+            with self.conn:
+                for key, record in records.items():
+                    if not isinstance(record, dict) or not record.get("path"):
+                        raise ValueError("state has a file without a path")
+                    path = str(record["path"])
+                    fp = str(record.get("fp", key))
+                    meta = record.get("meta")
+                    paper_id = None
+                    if meta:
+                        title = str(meta["title"])
+                        folded = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode().lower()
+                        normal = " ".join(re.sub(r"[^a-z0-9 ]", " ", folded).split())
+                        paper_id = "title:" + normal
+                        self.conn.execute("""INSERT OR IGNORE INTO papers VALUES (?,?,?,?,?,?,?,?)""",
+                                          (paper_id, title, meta.get("year"), meta.get("year_online"),
+                                           json.dumps(meta.get("authors", []), ensure_ascii=False),
+                                           meta.get("journal", ""), meta.get("source", "pdf-only"), now))
+                    sig = record.get("sig") or [None, None]
+                    status = record.get("status", "unknown")
+                    given = record.get("given")
+                    if "files" not in state and status in ("ok", "check"):
+                        given = Path(path).name
+                    self.conn.execute("""INSERT OR REPLACE INTO files VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                                      (path_key(path), path, fp, sig[0], sig[1], status, given,
+                                       paper_id, record.get("attempts", 0), now))
+                for row in history:
+                    self.conn.execute("""INSERT INTO history(time,old_path,new_path,source,status,batch)
+                        VALUES (?,?,?,?,?,?)""",
+                                      (row["time"], row["old_path"], row["new_path"],
+                                       row["source"], row["status"], row.get("batch", "")))
+                if old_config is not None and not (self.home / "config.json").exists():
+                    save_config(old_config, self.home)
+                self.conn.execute("INSERT INTO meta VALUES ('prototype_migrated','1')")
+            for path in present:
+                path.rename(path.with_name(path.name + ".bak"))
+            return True
+        except (OSError, ValueError, KeyError, sqlite3.DatabaseError) as exc:
+            raise DatabaseError(f"cannot migrate prototype data in {legacy}: {exc}") from exc
+
+
+class _empty_csv:
+    def __enter__(self):
+        return iter(())
+
+    def __exit__(self, *_):
+        return False
