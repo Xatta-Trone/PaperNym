@@ -8,6 +8,7 @@ name: Linux release
 on:
   push:
     tags: ["v*"]
+    branches: [linux-support]  # TEMPORARY: test builds before this workflow is on main; remove before merging
   workflow_dispatch:
     inputs:
       release_tag:
