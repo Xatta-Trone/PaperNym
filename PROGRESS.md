@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** metadata source adapters and field mapping
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_pdfread.py` — 6 passed
+- **Next task:** shared HTTP layer
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_sources.py` — 4 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -42,7 +42,7 @@ Rules:
 ### M2 Core, part 2
 - [x] `core/pdfread.py` on `pypdfium2`: text, lines with font size, rotation, properties, extra keys, XMP
 - [x] `core/pdfread.py`: title guess, author line, `paperish`, unreadable PDFs
-- [ ] `core/sources/`: crossref, doiorg, openalex, semanticscholar, arxiv with field mapping (both years)
+- [x] `core/sources/`: crossref, doiorg, openalex, semanticscholar, arxiv with field mapping (both years)
 - [ ] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
 - [ ] `core/identify.py`: DOI, arXiv and title-search paths with verification
 - [ ] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
@@ -244,3 +244,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_pdfread.py` — 6 passed on generated PDFs and a mocked password failure.
 - Decisions: Raise `PdfReadError` for unreadable input so the later engine records the `unreadable` status once per unchanged file.
 - Next: Implement service adapters and both-year metadata mapping.
+
+### 2026-11-10  M2  Map scholarly sources
+- Done: Added Crossref, doi.org, OpenAlex, Semantic Scholar, and arXiv adapters with citation and online year mapping, surname extraction, and service-specific request parameters.
+- Files: `src/papernym/core/sources/`, `tests/test_sources.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_sources.py` — 4 passed with injected fake HTTP responses.
+- Decisions: Keep adapters independent of transport; the shared HTTP layer supplies timeout, retries, and user-agent headers in the next task.
+- Next: Implement the shared HTTP request layer.
