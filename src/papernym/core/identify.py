@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import difflib
+import datetime as dt
+import json
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -73,11 +75,50 @@ def title_hit_ok(meta: dict | None, query: str, info: dict) -> bool:
 
 class Identifier:
     def __init__(self, config: dict, http_get: Callable | None = None,
-                 on_event: Callable | None = None):
+                 on_event: Callable | None = None, db=None):
         self.config = config
         self.http_get = http_get or HttpClient(config).get
         self.on_event = on_event or (lambda event: None)
+        self.db = db
         self._warned = set()
+
+    def _cached(self, ident: str) -> PaperMatch | None:
+        if self.db is None:
+            return None
+        row = self.db.get_paper(ident)
+        if row is None:
+            return None
+        meta = {key: row[key] for key in ("title", "year", "year_online", "journal", "source")}
+        meta["authors"] = json.loads(row["authors"])
+        return PaperMatch(ident, meta)
+
+    def _miss_fresh(self, ident: str) -> bool:
+        if self.db is None:
+            return False
+        row = self.db.get_miss(ident)
+        if row is None:
+            return False
+        try:
+            checked = dt.datetime.fromisoformat(row["checked_at"])
+            if checked.tzinfo is None:
+                checked = checked.replace(tzinfo=dt.timezone.utc)
+            return dt.datetime.now(dt.timezone.utc) - checked < dt.timedelta(days=30)
+        except ValueError:
+            return False
+
+    def _mark_miss(self, ident: str):
+        if self.db is not None:
+            self.db.put_miss(ident, dt.datetime.now(dt.timezone.utc).isoformat())
+
+    def _save_match(self, match: PaperMatch) -> PaperMatch:
+        if self.db is not None:
+            meta = match.meta
+            self.db.put_paper({"paper_id": match.paper_id, "title": meta["title"],
+                               "year": meta.get("year"), "year_online": meta.get("year_online"),
+                               "authors": json.dumps(meta.get("authors", []), ensure_ascii=False),
+                               "journal": meta.get("journal", ""), "source": meta["source"],
+                               "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat()})
+        return match
 
     def _call(self, source: str, function: Callable, value: str, stats: LookupStats, path: Path):
         if source == "openalex" and not self.config.get("openalex_key"):
@@ -100,25 +141,58 @@ class Identifier:
         meta_dois = [doi.lower() for doi in info.get("md_dois", [])]
         candidates = list(dict.fromkeys(meta_dois + find_dois(info.get("text", ""))))[:6]
         for doi in candidates:
+            ident = "doi:" + doi
+            cached = self._cached(ident)
+            if cached:
+                trusted = len(info.get("text", "")) < 200 and doi in meta_dois
+                if trusted or title_in_text(cached.meta["title"], info.get("text", "")):
+                    return cached, stats
+                continue
+            if self._miss_fresh(ident):
+                stats.reached += 1
+                continue
+            before = (stats.reached, stats.failed)
             for source, function in DOI_SOURCES:
                 meta = self._call(source, function, doi, stats, path)
                 if meta:
                     trusted = len(info.get("text", "")) < 200 and doi in meta_dois
                     if trusted or title_in_text(meta["title"], info.get("text", "")):
-                        return PaperMatch("doi:" + doi, meta), stats
+                        return self._save_match(PaperMatch(ident, meta)), stats
                     break
+            if stats.reached > before[0] and stats.failed == before[1]:
+                self._mark_miss(ident)
         arxiv_match = ARXIV_RE.search(info.get("text", "")) or ARXIV_FILE_RE.match(path.stem)
         if arxiv_match:
             aid = arxiv_match.group(1)
-            for source, function in ARXIV_SOURCES:
-                meta = self._call(source, function, aid, stats, path)
-                if meta and title_in_text(meta["title"], info.get("text", "")):
-                    return PaperMatch("arxiv:" + aid, meta), stats
+            ident = "arxiv:" + aid
+            cached = self._cached(ident)
+            if cached and title_in_text(cached.meta["title"], info.get("text", "")):
+                return cached, stats
+            if self._miss_fresh(ident):
+                stats.reached += 1
+            else:
+                before = (stats.reached, stats.failed)
+                for source, function in ARXIV_SOURCES:
+                    meta = self._call(source, function, aid, stats, path)
+                    if meta and title_in_text(meta["title"], info.get("text", "")):
+                        return self._save_match(PaperMatch(ident, meta)), stats
+                if stats.reached > before[0] and stats.failed == before[1]:
+                    self._mark_miss(ident)
         if self.config.get("title_search", True):
             queries = dict.fromkeys(title for title in (info.get("big_title"), info.get("md_title")) if title)
             for query in queries:
+                ident = "title:" + normal_title(query)
+                cached = self._cached(ident)
+                if cached and title_hit_ok(cached.meta, query, info):
+                    return cached, stats
+                if self._miss_fresh(ident):
+                    stats.reached += 1
+                    continue
+                before = (stats.reached, stats.failed)
                 for source, function in TITLE_SOURCES:
                     for meta in self._call(source, function, query, stats, path) or []:
                         if title_hit_ok(meta, query, info):
-                            return PaperMatch("title:" + normal_title(meta["title"]), meta), stats
+                            return self._save_match(PaperMatch("title:" + normal_title(meta["title"]), meta)), stats
+                if stats.reached > before[0] and stats.failed == before[1]:
+                    self._mark_miss(ident)
         return None, stats

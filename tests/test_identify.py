@@ -1,3 +1,4 @@
+from papernym.core.db import Database
 from papernym.core.identify import Identifier, author_on_page, title_in_text, titles_match
 from papernym.core.sources.http import NetError
 
@@ -100,3 +101,46 @@ def test_service_failure_event_once_and_next_service_used():
         assert match.meta["source"] == "doi.org"
         assert stats.failed == 1
     assert [event["type"] for event in events] == ["source_unavailable"]
+
+
+def test_paper_cache_avoids_second_network_lookup(tmp_path):
+    title = "A detailed study of road crash severity"
+    calls = []
+
+    def get(url, **_kwargs):
+        calls.append(url)
+        return {"message": csl(title)}
+
+    with Database(tmp_path) as db:
+        identifier = Identifier({"title_search": False}, get, db=db)
+        pdf = info((title + " ") * 8, md_dois=["10.1234/paper"])
+        first, _ = identifier.identify_online("one.pdf", pdf)
+        second, stats = identifier.identify_online("two.pdf", pdf)
+        assert first.paper_id == second.paper_id
+        assert len(calls) == 1
+        assert stats.reached == 0
+
+
+def test_recent_miss_skips_lookup_but_old_miss_retries(tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    calls = []
+
+    def get(url, **_kwargs):
+        calls.append(url)
+        return None
+
+    with Database(tmp_path) as db:
+        identifier = Identifier({"title_search": False}, get, db=db)
+        pdf = info("A paper with DOI 10.1234/missing " * 8)
+        match, _ = identifier.identify_online("paper.pdf", pdf)
+        assert match is None
+        assert db.get_miss("doi:10.1234/missing") is not None
+        count = len(calls)
+        _, stats = identifier.identify_online("paper.pdf", pdf)
+        assert len(calls) == count
+        assert stats.reached == 1
+        old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+        db.put_miss("doi:10.1234/missing", old)
+        identifier.identify_online("paper.pdf", pdf)
+        assert len(calls) > count

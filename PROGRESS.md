@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** identification cache and `misses` table
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 5 passed
+- **Next task:** outage handling and offline PDF fallback
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 7 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -45,7 +45,7 @@ Rules:
 - [x] `core/sources/`: crossref, doiorg, openalex, semanticscholar, arxiv with field mapping (both years)
 - [x] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
 - [x] `core/identify.py`: DOI, arXiv and title-search paths with verification
-- [ ] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
+- [x] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
 - [ ] `core/identify.py`: outage handling and the offline fallback rules
 - [ ] `title_search` privacy switch honoured
 - [ ] Regression table in SPEC section 17 passes
@@ -265,3 +265,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 5 passed with fake source responses.
 - Decisions: Reject a mismatched DOI immediately and continue with the next candidate; keep service failure counts for offline decisions.
 - Next: Add paper-cache and 30-day miss-cache handling.
+
+### 2026-11-10  M2  Cache papers and misses
+- Done: Connected accepted records to SQLite and added a 30-day negative cache for DOI, arXiv, and title identifiers.
+- Files: `src/papernym/core/identify.py`, `tests/test_identify.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 7 passed with temporary databases.
+- Decisions: Do not cache a miss when a service failed during that identifier's lookup; cached misses count as previously reached sources for later offline decisions.
+- Next: Add outage outcomes and conservative PDF-only fallback.
