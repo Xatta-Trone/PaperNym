@@ -519,3 +519,6 @@ Newest entry at the bottom. Use this shape:
 - Fix: `config._retry_shared` retries the read in `load_config` and the `os.replace` in `save_config` on `PermissionError`, Windows only, up to about 2 s. Also found while reproducing CI on Python 3.11: `tests/pdf_factory.py` used a backslash inside an f-string expression, a SyntaxError before Python 3.12 (the package supports 3.10+); fixed.
 - Tests: `test_reading_while_another_thread_saves` (fails on the old code, passes now), `test_sharing_violation_is_retried_then_reported`; full run 243 passed, three times.
 - Next: move tag `v0.1.0` to this commit and rerun the release.
+
+### 2026-11-11  Release  Version 0.1.1
+- Done: owner chose to release the fix as `v0.1.1` rather than move the `v0.1.0` tag (which points at the commit whose release run failed and produced no release). `__version__` is 0.1.1. `tests/test_smoke.py` and `tests/test_http.py` read the version from the package instead of hard-coding it.

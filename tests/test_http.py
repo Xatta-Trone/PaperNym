@@ -1,6 +1,7 @@
 import requests
 import pytest
 
+from papernym import __version__
 from papernym.core.sources.http import HttpClient, NetError
 
 
@@ -33,7 +34,7 @@ def test_user_agent_timeout_headers_and_text():
     assert client.get("https://example.org", headers={"Accept": "text/xml"}, kind="text") == "atom"
     _, kwargs = session.calls[0]
     assert kwargs["timeout"] == 12
-    assert kwargs["headers"]["User-Agent"].startswith("PaperNym/0.1.0 (mailto:a@example.org)")
+    assert kwargs["headers"]["User-Agent"].startswith(f"PaperNym/{__version__} (mailto:a@example.org)")
     assert kwargs["headers"]["Accept"] == "text/xml"
 
 
