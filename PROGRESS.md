@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M2 complete; awaiting owner to start M3
-- **Next task:** M3 `core/engine.py` per-file logic and statuses
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 119 passed
+- **Current milestone:** M3
+- **Next task:** hand-renamed, moved, annotated, and copied files
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 3 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -52,7 +52,7 @@ Rules:
 - [x] Local check: `pdfread` on a copy of every file in `sample_pdfs/`; log the DOI and title guess found for each
 
 ### M3 Core, part 3
-- [ ] `core/engine.py`: per-file logic and all five statuses
+- [x] `core/engine.py`: per-file logic and all five statuses
 - [ ] Hand-renamed, moved, annotated and copied files
 - [ ] Exclude list
 - [ ] Scan with progress events; prune
@@ -312,3 +312,10 @@ Newest entry at the bottom. Use this shape:
   - `mohammadi-et-al-2026-lidar-based-pavement-marking-detection-for-construction-engineering-a-systematic-review-of-methods.pdf` — `10.1061/jcemd4.coeng-18256` — LiDAR-Based Pavement Marking Detection for Construction Engineering: A Systematic Review of Methods and Applications.
 - Decisions: Use the embedded title as a later title-search candidate when the page-layout guess is a cover label; always verify a title-search result against the printed first author.
 - Next: Await the owner's instruction before M3 engine work.
+
+### 2026-11-10  M3  Process one PDF
+- Done: Added fingerprinting, file stability checks, per-file identification, safe target selection, transactional history recording, and the five database statuses.
+- Files: `src/papernym/core/engine.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 3 passed after correcting a test event-list helper.
+- Decisions: Keep PDF extraction and identification injectable for offline tests; keep failed renames as `pending` with metadata for lookup-free retry.
+- Next: Handle hand renames, moves, annotations, and copies.
