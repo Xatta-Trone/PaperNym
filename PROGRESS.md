@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** `core/pdfread.py` title, author, paperish, unreadable handling
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_pdfread.py` — 2 passed
+- **Next task:** metadata source adapters and field mapping
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_pdfread.py` — 6 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -41,7 +41,7 @@ Rules:
 
 ### M2 Core, part 2
 - [x] `core/pdfread.py` on `pypdfium2`: text, lines with font size, rotation, properties, extra keys, XMP
-- [ ] `core/pdfread.py`: title guess, author line, `paperish`, unreadable PDFs
+- [x] `core/pdfread.py`: title guess, author line, `paperish`, unreadable PDFs
 - [ ] `core/sources/`: crossref, doiorg, openalex, semanticscholar, arxiv with field mapping (both years)
 - [ ] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
 - [ ] `core/identify.py`: DOI, arXiv and title-search paths with verification
@@ -237,3 +237,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_pdfread.py` — 2 passed, using generated PDFs in temporary folders.
 - Decisions: Keep all PDF access in `pdfread.py`; generate fixtures with the standard library so tests use no additional package.
 - Next: Derive title, author line, paperish status, and unreadable handling.
+
+### 2026-11-10  M2  Derive PDF identification hints
+- Done: Added page-layout title blocks, nearby author-line detection, metadata-title filtering, DOI and arXiv hints, `paperish`, and clear corrupt/password errors.
+- Files: `src/papernym/core/pdfread.py`, `tests/test_pdfread.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_pdfread.py` — 6 passed on generated PDFs and a mocked password failure.
+- Decisions: Raise `PdfReadError` for unreadable input so the later engine records the `unreadable` status once per unchanged file.
+- Next: Implement service adapters and both-year metadata mapping.

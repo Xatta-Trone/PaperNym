@@ -16,6 +16,8 @@ ARXIV_RE = re.compile(r"arxiv[:.\s/]*(\d{4}\.\d{4,5})(?:v\d+)?", re.I)
 ARXIV_FILE_RE = re.compile(r"^(\d{4}\.\d{4,5})(?:v\d+)?$", re.I)
 XMP_RE = re.compile(rb"<x:xmpmeta\b.*?</x:xmpmeta>", re.S)
 EXTRA_KEYS = ("doi", "DOI", "arXivID")
+YEAR_RE = re.compile(r"\b(19[5-9]\d|20\d{2})\b")
+BAD_TITLE = re.compile(r"\.(pdf|docx?|tex|dvi|indd)$|^untitled|microsoft word|^doi:|^pii:", re.I)
 
 
 class PdfReadError(ValueError):
@@ -141,3 +143,56 @@ def extract_pdf(path: str | Path) -> dict:
         raise PdfReadError(f"cannot read PDF ({exc})") from exc
     finally:
         doc.close()
+
+
+def guess_title_and_author(lines: list[Line]) -> tuple[str, str]:
+    """Find the longest block at the largest upright page-1 font size."""
+    candidates = [line for line in lines if not line.rotated and len(line.text) > 3
+                  and not ARXIV_RE.match(line.text)]
+    if not candidates:
+        return "", ""
+    largest = max(line.size for line in candidates)
+    selected = [index for index, line in enumerate(lines) if line in candidates
+                and abs(line.size - largest) < 0.6]
+    groups = [[selected[0]]]
+    for index in selected[1:]:
+        previous = groups[-1][-1]
+        if index == previous + 1 and lines[index].top - lines[previous].bottom < 1.5 * largest:
+            groups[-1].append(index)
+        else:
+            groups.append([index])
+    best = max(groups, key=lambda group: sum(len(lines[index].text) for index in group))
+    title = " ".join(lines[index].text for index in best)
+    author = ""
+    for line in lines[best[-1] + 1:best[-1] + 6]:
+        if (not line.rotated and len(line.text.split()) >= 2
+                and re.match(r"^[A-Z][A-Za-z.\-' ]+[A-Za-z]", line.text)
+                and not YEAR_RE.search(line.text)):
+            author = line.text
+            break
+    return (title if 16 <= len(title) <= 299 else "", author)
+
+
+def read_pdf(path: str | Path) -> dict:
+    """Return the extraction and conservative identification hints."""
+    raw_data = extract_pdf(path)
+    metadata = raw_data["metadata"]
+    title = str(metadata.get("Title") or "").strip()
+    big_title, author_line = guess_title_and_author(raw_data["lines"])
+    md_blob = " ".join(str(value) for value in metadata.values() if value)
+    text = raw_data["text"]
+    xmp = raw_data["xmp"]
+    creation = str(metadata.get("CreationDate") or "")
+    created = creation[2:6] if creation.startswith("D:") else ""
+    return {
+        "text": text,
+        "page1": raw_data["page1"],
+        "md_title": title if len(title) >= 11 and not BAD_TITLE.search(title) else "",
+        "md_author": str(metadata.get("Author") or "").strip(),
+        "md_dois": find_dois(md_blob, xmp),
+        "big_title": big_title,
+        "author_line": author_line,
+        "created": created,
+        "paperish": bool(DOI_RE.search(md_blob + xmp + text) or ARXIV_RE.search(text)
+                         or re.search(r"\b(abstract|keywords|introduction|references)\b", text, re.I)),
+    }
