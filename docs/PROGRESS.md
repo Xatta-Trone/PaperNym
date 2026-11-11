@@ -15,7 +15,8 @@ Rules:
 
 - **Current milestone:** M6 built locally (exe, installer, release workflow); M5 manual checklist still open
 - **Next task:** Owner: M5 checklist, push the repo to `Xatta-Trone/papernym`, clean-account install test, then tag `v0.1.0` for the first (unsigned) release
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 239 passed
+- **Pending, later (owner, 2026-11-11):** M7 PyPI and M8 Linux; not started
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 241 passed
 - **Open questions for the owner:** none (releases go out unsigned; see docs/BUILDING.md)
 
 ## Milestones
@@ -100,7 +101,9 @@ Rules:
 - [x] Code signing: owner chose to release unsigned for now (2026-11-11); the build script keeps an optional `SIGN_PFX` hook
 
 ### M7 PyPI (priority 2)
-- [ ] README (install, quick start, commands, privacy note), LICENSE (MIT), CHANGELOG
+- [x] README (install, quick start, commands, privacy note), LICENSE (MIT)
+- [ ] CHANGELOG
+- [ ] README: replace "from source" install with `pip install papernym` / `pipx install papernym` once published
 - [ ] Build sdist and wheel; `twine check`
 - [ ] Upload to TestPyPI; install from it in a fresh venv
 - [ ] GitHub Actions: tests on `windows-latest` and `ubuntu-latest`; release workflow
@@ -502,3 +505,8 @@ Newest entry at the bottom. Use this shape:
 - Problem: on the owner's machine PaperNym refused to start with "cannot migrate prototype data ... unknown config keys: max_title_chars". The prototype's `config.json` stores the title length as `max_title_chars`; after the title length was removed, only the newer name `title_limit` was dropped on load.
 - Fix: `max_title_chars` joins `title_limit` in `config.RETIRED`, so it is dropped wherever a config is read, including the one-time prototype import. The import runs in one transaction and validates the config first, so the failed start left nothing half-imported.
 - Tests: `tests/test_db.py::test_prototype_config_with_title_length_migrates`; full run 241 passed.
+
+### 2026-11-11  Docs  Official README
+- Done: `README.md` at the root: what PaperNym does, features, Windows install (with the unsigned SmartScreen note and SHA256 check), install from source, getting started (tray and CLI), all 15 presets and custom templates, how papers are identified, safety, privacy table (SPEC 16), API keys and where they are stored, CLI reference, settings folder and sandbox, uninstall, development links, roadmap, licence and data credits. `pyproject.toml` now uses it as the package readme (`readme = "README.md"`), ready for M7.
+- Pending by owner decision: M7 PyPI and M8 Linux come later; the README lists both under Roadmap and offers install from source meanwhile.
+
