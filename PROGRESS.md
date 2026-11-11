@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/lock.py` single-writer lock
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 7 passed
+- **Next task:** `core/naming.py` tokens, field cleaning, non-Latin fallback
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_lock.py` — 2 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -32,7 +32,7 @@ Rules:
 - [x] `core/config.py`: load, save (atomic), defaults, validation, env overrides
 - [x] `core/db.py`: schema, WAL, queries, daily backup, corrupt-database handling
 - [x] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
-- [ ] `core/lock.py`: single-writer lock (Windows and Linux)
+- [x] `core/lock.py`: single-writer lock (Windows and Linux)
 - [ ] `core/naming.py`: tokens, field cleaning, non-Latin fallback
 - [ ] `core/naming.py`: the 15 fixed presets (SPEC section 7)
 - [ ] `core/naming.py`: custom templates with fixed text, and every validation rule
@@ -188,3 +188,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_db.py` — 7 passed, including both state formats and malformed input.
 - Decisions: Use `title:<normalised title>` IDs for legacy records because the prototype state did not retain DOI IDs; preserve originals if parsing fails.
 - Next: Implement the cross-platform single-writer lock.
+
+### 2026-11-10  M1  Add single-writer lock
+- Done: Added a nonblocking OS file lock with Windows and Linux paths, context-manager use, and reliable release.
+- Files: `src/papernym/core/lock.py`, `tests/test_lock.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_lock.py` — 2 passed; a second process could not acquire a held lock.
+- Decisions: Keep the lock file in the settings folder and let the OS release it if the process exits.
+- Next: Implement naming tokens and field cleaning.
