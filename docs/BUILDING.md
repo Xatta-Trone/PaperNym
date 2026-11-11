@@ -44,11 +44,15 @@ contains Anaconda or MSYS makes it bundle the wrong `icuuc.dll`, and Qt fails to
 - Adds a Start-menu shortcut, and a desktop shortcut if ticked.
 - **Start PaperNym when I log in** (ticked by default): writes the `HKCU\...\Run` entry, plus
   a one-time marker the app reads on its next start, so the app's own setting matches.
-- **Add the "papernym" command to PATH** (ticked by default): adds `{app}\bin`, which holds
-  `papernym.cmd`, a shim for `papernym-cli.exe`. The two exe names cannot differ only by
-  case on Windows, hence the shim.
-- The uninstaller stops the app and removes its files, the login entry, the PATH entry and
-  the shortcuts. It asks whether to remove settings, history and saved API keys (default No).
+- **The command line is always installed and registered** with the tray app (no checkbox):
+  - `{app}\bin` goes on the user PATH. It holds `papernym.cmd`, a shim for
+    `papernym-cli.exe`, so `papernym show` works in any *new* cmd or PowerShell window. The
+    two exe names cannot differ only by case on Windows, hence the shim.
+  - App Paths entries (`HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths`) for
+    `PaperNym.exe` and `papernym-cli.exe`, so Windows finds both by name from Win+R, Start
+    and `start papernym-cli`.
+- The uninstaller stops the app and removes its files, the login entry, the PATH and App
+  Paths entries and the shortcuts. It asks whether to remove settings, history and saved API keys (default No).
   PDFs are never touched.
 
 ## Release through GitHub
@@ -72,18 +76,16 @@ builds the artifact.
 Bump `src/papernym/__init__.py` before tagging. The app's update check reads the latest
 release of `Xatta-Trone/papernym`.
 
-## Code signing (recommended before public release)
+## Code signing (not used for now)
 
-Unsigned builds trigger SmartScreen ("Windows protected your PC"). They can also trip
-Microsoft Defender's behaviour detection: in the local trial, an unsigned `PaperNym.exe`
-installed under `%TEMP%` that registered itself to start at login was blocked as
-`Behavior:Win32/Persistence.A!ml`.
-
-The build signs automatically when a certificate is provided:
-
-- **Locally:** set `SIGN_PFX` (path to a `.pfx`) and `SIGN_PASSWORD`; `signtool.exe` comes from the Windows SDK.
-- **In GitHub:** add the repository secrets `SIGN_PFX_BASE64` (the `.pfx`, base64-encoded) and `SIGN_PASSWORD`.
-
-Low-cost options are Azure Trusted Signing, or SignPath.io, which is free for open-source
-projects. You can also report a false positive to Microsoft at
+Releases are unsigned. Users see SmartScreen's "Windows protected your PC" on the installer
+and choose **More info > Run anyway**; the warning fades as a release gains downloads.
+Microsoft Defender's behaviour detection can also flag a new unsigned exe that registers
+itself at login: in the local trial, a copy installed under `%TEMP%` was blocked as
+`Behavior:Win32/Persistence.A!ml`. If a release is flagged, report it as a false positive at
 https://www.microsoft.com/wdsi/filesubmission.
+
+To sign later: `scripts/build_windows.py` still signs both exes and the installer when
+`SIGN_PFX` (a `.pfx`) and `SIGN_PASSWORD` are set and `signtool.exe` is available. The release
+workflow does not pass a certificate. SignPath.io (free for open-source projects) and Azure
+Trusted Signing are the low-cost routes.

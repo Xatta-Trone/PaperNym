@@ -8,6 +8,7 @@
 
 #define AppName "PaperNym"
 #define AppExe "PaperNym.exe"
+#define CliExe "papernym-cli.exe"
 #define Repo "https://github.com/Xatta-Trone/papernym"
 
 [Setup]
@@ -46,7 +47,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "startatlogin"; Description: "Start PaperNym when I log in (it waits quietly in the tray)"; GroupDescription: "Options:"
-Name: "addtopath"; Description: "Add the ""papernym"" command to PATH (use it in cmd or PowerShell)"; GroupDescription: "Options:"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Options:"; Flags: unchecked
 
 [Files]
@@ -68,8 +68,14 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "PaperNym"; Flags: deletevalue; Tasks: not startatlogin
 Root: HKCU; Subkey: "Software\PaperNym"; ValueType: dword; ValueName: "InstallerStartAtLogin"; ValueData: 1; Flags: uninsdeletekey; Tasks: startatlogin
 Root: HKCU; Subkey: "Software\PaperNym"; ValueType: dword; ValueName: "InstallerStartAtLogin"; ValueData: 0; Flags: uninsdeletekey; Tasks: not startatlogin
-; PATH: add {app}\bin (papernym.cmd) once; removed again by the uninstaller.
-Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\bin"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}\bin'))
+; The command line is part of every install. PATH gets {app}\bin (papernym.cmd) once, so
+; "papernym" works in any new cmd or PowerShell; removed again by the uninstaller.
+Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\bin"; Check: NeedsAddPath(ExpandConstant('{app}\bin'))
+; App Paths: Windows finds both programs by name from Win+R, Start and "start <name>".
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#AppExe}"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExe}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#AppExe}"; ValueType: string; ValueName: "Path"; ValueData: "{app}"
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#CliExe}"; ValueType: string; ValueName: ""; ValueData: "{app}\{#CliExe}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#CliExe}"; ValueType: string; ValueName: "Path"; ValueData: "{app}"
 
 [Run]
 Filename: "{app}\{#AppExe}"; Parameters: "--show"; Description: "Open PaperNym now"; Flags: nowait postinstall skipifsilent
@@ -128,8 +134,8 @@ begin
     if RemoveSettings then
     begin
       { forget the keys in Windows Credential Manager while the CLI is still installed }
-      Exec(ExpandConstant('{app}\papernym-cli.exe'), 'set-key openalex ""', '', SW_HIDE, ewWaitUntilTerminated, Code);
-      Exec(ExpandConstant('{app}\papernym-cli.exe'), 'set-key semanticscholar ""', '', SW_HIDE, ewWaitUntilTerminated, Code);
+      Exec(ExpandConstant('{app}\{#CliExe}'), 'set-key openalex ""', '', SW_HIDE, ewWaitUntilTerminated, Code);
+      Exec(ExpandConstant('{app}\{#CliExe}'), 'set-key semanticscholar ""', '', SW_HIDE, ewWaitUntilTerminated, Code);
     end;
   end;
   if CurUninstallStep = usPostUninstall then

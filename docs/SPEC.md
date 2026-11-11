@@ -786,12 +786,14 @@ is cloud-synced.
   "start at login", uninstaller that leaves the settings folder unless the user ticks
   "remove my settings".
 - As built (see `docs/BUILDING.md`): the folder holds `PaperNym.exe` (windowed) and
-  `papernym-cli.exe` (console); the installer's optional "Add to PATH" adds `bin\papernym.cmd`
-  so `papernym` works in a terminal (Windows file names are case-insensitive, so the CLI cannot
+  `papernym-cli.exe` (console); every install includes the CLI and registers it: PATH gets
+  `bin\papernym.cmd` so `papernym` works in a terminal, and App Paths entries let Windows find
+  both programs by name (Windows file names are case-insensitive, so the CLI cannot
   be `papernym.exe` next to `PaperNym.exe`). The installer's start-at-login choice is left as a
   one-time marker in `HKCU\Software\PaperNym` that the app adopts into its own setting.
 - Code-sign the executable and the installer. Unsigned builds trigger Windows SmartScreen
-  warnings.
+  warnings. Owner decision 2026-11-11: release unsigned for now; the build script keeps an
+  optional signing hook.
 - Update check (`core/updates.py`): 30 s after start and then every 24 h (and from About >
   Check for updates now), one unauthenticated GET to
   `https://api.github.com/repos/Xatta-Trone/papernym/releases/latest` with only a

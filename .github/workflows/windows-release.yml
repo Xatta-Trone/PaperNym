@@ -65,21 +65,8 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 
-      - name: Prepare code signing (only if the secret is set)
-        env:
-          SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
-        run: |
-          if ($env:SIGN_PFX_BASE64) {
-            $pfx = Join-Path $env:RUNNER_TEMP "sign.pfx"
-            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGN_PFX_BASE64))
-            "SIGN_PFX=$pfx" >> $env:GITHUB_ENV
-          } else {
-            Write-Host "No signing certificate configured; building unsigned."
-          }
-
+      # Releases are unsigned for now (see docs/BUILDING.md, "Code signing").
       - name: Build the app and the installer
-        env:
-          SIGN_PASSWORD: ${{ secrets.SIGN_PASSWORD }}
         run: |
           $extra = @()
           if ($env:RELEASE_TAG) { $extra = @("--expected-version", $env:RELEASE_TAG) }

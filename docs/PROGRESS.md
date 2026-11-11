@@ -14,9 +14,9 @@ Rules:
 ## Current state
 
 - **Current milestone:** M6 built locally (exe, installer, release workflow); M5 manual checklist still open
-- **Next task:** Owner: M5 checklist, push the repo to `Xatta-Trone/papernym`, choose a code-signing route; then the clean-account install test and the first tagged release
+- **Next task:** Owner: M5 checklist, push the repo to `Xatta-Trone/papernym`, clean-account install test, then tag `v0.1.0` for the first (unsigned) release
 - **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 239 passed
-- **Open questions for the owner:** code signing (Defender blocked an unsigned trial install that set start at login; see docs/BUILDING.md)
+- **Open questions for the owner:** none (releases go out unsigned; see docs/BUILDING.md)
 
 ## Milestones
 
@@ -97,7 +97,7 @@ Rules:
 - [x] `THIRD_PARTY_LICENSES` file
 - [ ] Install, run, uninstall on a clean Windows account (silent trial on the owner's account: install and uninstall verified; launching the installed copy was blocked by Defender, see the work log)
 - [ ] GitHub Actions release workflow: on a `v*` tag, run tests, call the build script, attach the installer to a GitHub Release (written; not run yet because the repository is not on GitHub)
-- [ ] Code signing (SPEC 15.1); the build signs when `SIGN_PFX` / `SIGN_PFX_BASE64` is provided
+- [x] Code signing: owner chose to release unsigned for now (2026-11-11); the build script keeps an optional `SIGN_PFX` hook
 
 ### M7 PyPI (priority 2)
 - [ ] README (install, quick start, commands, privacy note), LICENSE (MIT), CHANGELOG
@@ -492,4 +492,8 @@ Newest entry at the bottom. Use this shape:
 - Files: `scripts/build_windows.py`, `packaging/{papernym.spec,papernym.iss,papernym.cmd,launch_gui.py,launch_cli.py}`, `.github/workflows/windows-release.yml`, `src/papernym/core/autostart.py`, `src/papernym/gui/{app,dialogs}.py`, `tests/test_build_script.py`, `tests/test_gui.py`, `pyproject.toml`, `docs/BUILDING.md`, `docs/SPEC.md`, `docs/PROGRESS.md`. Inno Setup 6.7.3 installed for the owner's user with winget (approved).
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 239 passed (6 new).
 - Next: owner pushes to GitHub and picks a signing route; tag `v0.1.0` to run the workflow; clean-account install test with a signed build.
+
+### 2026-11-11  M6  Unsigned releases; the CLI is always installed and registered
+- Done: owner decided to release without code signing. The workflow's signing step is removed; `scripts/build_windows.py` keeps its optional `SIGN_PFX` hook for later. The installer no longer offers "Add to PATH" as an option: every install ships `papernym-cli.exe` with the tray app, puts `{app}\bin` (`papernym.cmd`) on the user PATH, and adds App Paths entries for `PaperNym.exe` and `papernym-cli.exe`; the uninstaller removes all of them. `tests/test_build_script.py` checks the installer script for this.
+- Files: `packaging/papernym.iss`, `.github/workflows/windows-release.yml`, `tests/test_build_script.py`, `docs/BUILDING.md`, `docs/SPEC.md`, `docs/PROGRESS.md`.
 

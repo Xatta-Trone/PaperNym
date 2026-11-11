@@ -41,3 +41,12 @@ def test_tag_must_match_version(monkeypatch):
     monkeypatch.setattr(sys, "platform", "win32")
     with pytest.raises(SystemExit, match="version mismatch"):
         build.main()
+
+
+def test_installer_always_ships_and_registers_the_cli():
+    iss = (Path(__file__).resolve().parents[1] / "packaging" / "papernym.iss").read_text(encoding="utf-8")
+    assert "addtopath" not in iss  # PATH is not optional any more
+    path_line = next(line for line in iss.splitlines() if 'ValueName: "Path"; ValueData: "{olddata}' in line)
+    assert "Tasks:" not in path_line
+    assert r"App Paths\{#CliExe}" in iss and r"App Paths\{#AppExe}" in iss
+    assert '#define CliExe "papernym-cli.exe"' in iss
