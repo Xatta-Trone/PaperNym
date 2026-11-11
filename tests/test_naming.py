@@ -35,3 +35,27 @@ def test_two_authors_and_word_separator():
     assert naming.token_values(meta, word_sep=" ")["authors"] == "Smith and Jones"
     with pytest.raises(ValueError):
         naming.clean_field("x", "/")
+
+
+@pytest.mark.parametrize("preset,expected", [
+    ("year_author_title", "2025_Smith_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("author_year_title", "Smith_2025_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("year_authors_title", "2025_Smith_et_al_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("authors_year_title", "Smith_et_al_2025_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("year_author_shorttitle", "2025_Smith_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("author_year_shorttitle", "Smith_2025_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("year_author_journal_title", "2025_Smith_Accid_Anal_Prev_Deep_learning_for_crash_severity_prediction.pdf"),
+    ("author_year_journal", "Smith_2025_Accid_Anal_Prev.pdf"),
+    ("title_author_year", "Deep_learning_for_crash_severity_prediction_Smith_2025.pdf"),
+    ("title_only", "Deep_learning_for_crash_severity_prediction.pdf"),
+    ("author_year", "Smith_2025.pdf"),
+    ("citekey", "Smith2025DeepLearningForCrashSeverityPrediction.pdf"),
+    ("author_year_title_spaces", "Smith (2025) Deep learning for crash severity prediction.pdf"),
+    ("authors_year_title_spaces", "Smith et al (2025) Deep learning for crash severity prediction.pdf"),
+    ("authors_year_title_zotero", "Smith et al - 2025 - Deep learning for crash severity prediction.pdf"),
+])
+def test_every_preset(preset, expected):
+    meta = sample_meta()
+    meta["authors"] = ["Smith", "Jones", "Lee"]
+    assert len(naming.PRESETS) == 15
+    assert naming.render_preset(preset, meta) == expected

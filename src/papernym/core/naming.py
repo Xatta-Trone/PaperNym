@@ -8,6 +8,25 @@ import unicodedata
 
 TOKENS = frozenset({"year", "author", "authors", "title", "shorttitle", "journal"})
 _TAGS = re.compile(r"<[^>]*>")
+_TOKEN = re.compile(r"\{([^{}]+)\}")
+
+PRESETS = {
+    "year_author_title": ("{year}_{author}_{title}", "_"),
+    "author_year_title": ("{author}_{year}_{title}", "_"),
+    "year_authors_title": ("{year}_{authors}_{title}", "_"),
+    "authors_year_title": ("{authors}_{year}_{title}", "_"),
+    "year_author_shorttitle": ("{year}_{author}_{shorttitle}", "_"),
+    "author_year_shorttitle": ("{author}_{year}_{shorttitle}", "_"),
+    "year_author_journal_title": ("{year}_{author}_{journal}_{title}", "_"),
+    "author_year_journal": ("{author}_{year}_{journal}", "_"),
+    "title_author_year": ("{title}_{author}_{year}", "_"),
+    "title_only": ("{title}", "_"),
+    "author_year": ("{author}_{year}", "_"),
+    "citekey": ("{author}{year}{shorttitle}", ""),
+    "author_year_title_spaces": ("{author} ({year}) {title}", " "),
+    "authors_year_title_spaces": ("{authors} ({year}) {title}", " "),
+    "authors_year_title_zotero": ("{authors} - {year} - {title}", " "),
+}
 
 
 def clean_field(value: object, word_sep: str = "_") -> str:
@@ -45,3 +64,22 @@ def token_values(meta: dict, year_mode: str = "citation", word_sep: str = "_") -
         "shorttitle": clean_field(raw_short, word_sep),
         "journal": clean_field(meta.get("journal", ""), word_sep),
     }
+
+
+def _render_stem(template: str, values: dict[str, str]) -> str:
+    stem = _TOKEN.sub(lambda match: values[match.group(1)], template)
+    stem = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", stem)
+    stem = re.sub(r"([_\- ])\1+", r"\1", stem)
+    stem = re.sub(r"\(\s*\)", "", stem)
+    return stem.strip(" ._-")
+
+
+def render_preset(name: str, meta: dict, year_mode: str = "citation") -> str:
+    """Render one fixed preset, before the length budget is applied."""
+    template, sep = PRESETS[name]
+    values = token_values(meta, year_mode, sep)
+    if name == "citekey":
+        title_words = clean_field(meta.get("title", ""), " ").split()[:6]
+        values["shorttitle"] = "".join(word.capitalize() for word in title_words)
+        values["author"] = values["author"].capitalize()
+    return _render_stem(template, values) + ".pdf"

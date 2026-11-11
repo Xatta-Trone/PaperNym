@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/naming.py` 15 fixed presets
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 3 passed
+- **Next task:** `core/naming.py` custom templates and validation
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 18 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -34,7 +34,7 @@ Rules:
 - [x] `core/db.py`: migration from the prototype's `state.json`, `history.csv`, `config.json`
 - [x] `core/lock.py`: single-writer lock (Windows and Linux)
 - [x] `core/naming.py`: tokens, field cleaning, non-Latin fallback
-- [ ] `core/naming.py`: the 15 fixed presets (SPEC section 7)
+- [x] `core/naming.py`: the 15 fixed presets (SPEC section 7)
 - [ ] `core/naming.py`: custom templates with fixed text, and every validation rule
 - [ ] `core/naming.py`: length budget (255 name, Windows 259 path), whole-word cut
 - [ ] `core/naming.py`: collision rules (`_dupN` for the same paper, title extension for different papers)
@@ -202,3 +202,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 3 passed.
 - Decisions: Use the journal text provided by metadata sources; Crossref's short-container-title is already preferred by the source mapping.
 - Next: Add the 15 fixed naming presets.
+
+### 2026-11-10  M1  Add naming presets
+- Done: Added all 15 fixed preset templates, including the concatenated citation key and space-based formats.
+- Files: `src/papernym/core/naming.py`, `tests/test_naming.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 18 passed, including one exact-name case per preset.
+- Decisions: Store presets as immutable template/separator pairs in code; the length budget is the later M1 task.
+- Next: Add custom templates and all validation rules.
