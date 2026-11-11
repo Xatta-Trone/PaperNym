@@ -138,7 +138,7 @@ class DetailsDialog(QDialog):
 class WelcomeWizard(QWizard):
     """First run: (1) folders, (2) name format with preview, (3) optional OpenAlex key."""
 
-    def __init__(self, folders: list[str], parent=None):
+    def __init__(self, folders: list[str], parent=None, *, allow_login: bool = True):
         super().__init__(parent)
         self.setWindowTitle("Welcome to PaperNym")
         self.setWizardStyle(QWizard.ModernStyle)
@@ -193,6 +193,12 @@ class WelcomeWizard(QWizard):
         link = QLabel('<a href="https://openalex.org/settings/api">Get a free key</a>')
         link.setOpenExternalLinks(True)
         layout.addRow(link)
+        self.login = QCheckBox("Start PaperNym when I &log in (it waits quietly in the tray)")
+        self.login.setChecked(allow_login)
+        self.login.setEnabled(allow_login)
+        if not allow_login:
+            self.login.setToolTip("Not available in sandbox mode")
+        layout.addRow(self.login)
         self.addPage(key_page)
         self._update_preview()
 
@@ -211,6 +217,9 @@ class WelcomeWizard(QWizard):
 
     def chosen_preset(self) -> str:
         return self.preset.currentData()
+
+    def start_at_login(self) -> bool:
+        return self.login.isEnabled() and self.login.isChecked()
 
     def openalex_key(self) -> str:
         return self.key.text().strip()

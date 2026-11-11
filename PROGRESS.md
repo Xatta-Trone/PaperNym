@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M5 built; waiting for the owner's manual checklist pass on Windows 11
 - **Next task:** Owner runs `docs/M5_MANUAL_CHECKLIST.md`; then M6 `scripts/build_windows.py`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 205 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 209 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -447,3 +447,11 @@ Newest entry at the bottom. Use this shape:
 - Decisions: Ignore uses the existing `ok` status with no paper rather than a new status (recorded in SPEC section 12). "Check for updates" is shown disabled until the M6 release exists. "Get a free key" links to `https://openalex.org/settings/api` (not verified live). Start at login is implemented now (M6 keeps its own checkbox for the installed exe path).
 - Not done: the manual checklist (`docs/M5_MANUAL_CHECKLIST.md`) needs the owner on Windows 11: real tray icon and menu, toasts, Explorer selection, keyboard pass.
 - Next: Owner runs the checklist; fix anything found; then M6.
+
+### 2026-11-11  M5  Owner feedback: Activity actions, paging, search, toasts, login
+- Done: Activity and Needs attention now use a shared `PagedTable` (`src/papernym/gui/table.py`): a model/view table with a search box, status filter, 200 rows per page and First/Previous/Next/Last with "1-200 of N (filtered from M)". Activity keeps the newest 20,000 rows; the app loads 5,000 history rows at start. Activity buttons are disabled until a row is selected (with a hint), each action reports in the status bar (including "no longer there" for moved files), and rows also have a right-click menu and double-click/Enter to open. Rename notifications are batched into one toast (end of scan, after 4 s of quiet, or every 20 s). Sources labels no longer show a literal `&` (real buddy labels). The welcome step 3 offers "Start PaperNym when I log in", ticked by default (not in sandbox), and each normal start re-syncs the Run key.
+- Cause of "buttons not working": no row was selected (the screenshot shows only a hovered cell), and the actions returned silently.
+- Files: `src/papernym/gui/{table,tabs,app,dialogs}.py`, `tests/test_gui.py`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 209 passed (4 new: paging/search/filter over 1,234 rows, Activity buttons end to end on a real renamed file, Sources labels, welcome login choice; 3 updated).
+- Not done: the owner's manual checklist on Windows 11.
+

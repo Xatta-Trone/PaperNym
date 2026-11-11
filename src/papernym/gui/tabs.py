@@ -24,6 +24,7 @@ from ..core.sources.http import HttpClient
 from .common import (EVENT_STATUS, FILE_STATUS, REASONS, SAMPLE_PAPERS, open_path, short,
                      show_in_folder)
 from .dialogs import DetailsDialog, PreviewDialog
+from .table import PagedTable
 
 NO_TITLE = {"author_year", "author_year_journal"}
 SEPARATORS = (("Underscore  _", "_"), ("Space", " "), ("Hyphen  -", "-"), ("None (words run together)", ""))
@@ -51,6 +52,13 @@ def _item(text: str, data=None) -> QTableWidgetItem:
     return item
 
 
+def _buddy(text: str, widget) -> QLabel:
+    """A form label whose Alt+letter mnemonic focuses ``widget`` (needed when the field is a layout)."""
+    label = QLabel(text)
+    label.setBuddy(widget)
+    return label
+
+
 def _time(stamp: str | None = None) -> str:
     if not stamp:
         return dt.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -71,6 +79,9 @@ class _Background(QObject):
 
 # Activity -------------------------------------------------------------------------
 
+ACTIVITY_LIMIT = 20000  # rows kept in memory; older renames remain in History and the CSV export
+
+
 class ActivityTab(QWidget):
     SHOWN = ("renamed", "needs_check", "unidentified", "undo", "busy", "skipped")
 
@@ -87,44 +98,45 @@ class ActivityTab(QWidget):
         self.progress.setFormat("Idle")
         self.progress.setValue(0)
         top.addWidget(self.progress, 1)
-        top.addWidget(QLabel("&Filter:"))
-        self.filter = QComboBox()
-        self.filter.addItem("All", None)
-        for key in self.SHOWN:
-            self.filter.addItem(EVENT_STATUS[key], EVENT_STATUS[key])
-        self.filter.currentIndexChanged.connect(self._apply_filter)
-        top.itemAt(top.count() - 1).widget().setBuddy(self.filter)
-        top.addWidget(self.filter)
         layout.addLayout(top)
-        self.table = _table(["Time", "Status", "Source", "Old name", "New name"], "Activity")
-        self.table.setColumnWidth(0, 125)
-        self.table.setColumnWidth(1, 105)
-        self.table.setColumnWidth(2, 100)
-        self.table.setColumnWidth(3, 330)
-        self.table.doubleClicked.connect(lambda *_: self._open())
+        self.table = PagedTable(
+            [("Time", lambda r: r["time"]), ("Status", lambda r: r["status"]),
+             ("Source", lambda r: r["source"]), ("Old name", lambda r: r["old"]),
+             ("New name / details", lambda r: r["new"])],
+            name="Activity", search_text=lambda r: f"{r['old']} {r['new']} {r['path']}",
+            statuses=[EVENT_STATUS[key] for key in self.SHOWN], status_of=lambda r: r["status"])
+        for column, width in enumerate((125, 105, 100, 330)):
+            self.table.view.setColumnWidth(column, width)
+        self.table.set_actions([("Open file", self._open), ("Show in folder", self._reveal),
+                                ("Undo this rename", self._undo), ("Refresh metadata", self._refresh)])
         layout.addWidget(self.table)
         actions = QHBoxLayout()
+        self.buttons = []
         for text, slot in (("&Open file", self._open), ("Show in &folder", self._reveal),
-                           ("&Undo", self._undo), ("&Refresh metadata", self._refresh)):
+                           ("&Undo", self._undo), ("Refresh &metadata", self._refresh)):
             button = QPushButton(text)
             button.clicked.connect(slot)
             actions.addWidget(button)
+            self.buttons.append(button)
+        self.hint = QLabel("Select a row to use these buttons (or right-click a row).")
+        actions.addWidget(self.hint)
         actions.addStretch(1)
         layout.addLayout(actions)
+        self.table.selection_changed.connect(self._update_buttons)
+        self._update_buttons()
         ctl.worker.event.connect(self.on_event)
 
     def load_history(self, rows: list[dict]):
-        for row in reversed(rows):
-            status = "Undone" if row["undone"] else ("Check" if row["status"] == "check" else "Renamed")
-            current = row["old_path"] if row["undone"] else row["new_path"]
-            self._add(_time(row["time"]), short(row["old_path"]), short(row["new_path"]),
-                      row["source"], status, current)
-
-    def _add(self, when, old, new, source, status, path):
-        self.table.insertRow(0)
-        for column, text in enumerate((when, status, source, old, new)):
-            self.table.setItem(0, column, _item(text, path if column == 0 else None))
-        self._apply_filter()
+        entries = []
+        for row in rows:  # newest first
+            undone = bool(row["undone"])
+            entries.append({"time": _time(row["time"]),
+                            "status": "Undone" if undone else ("Check" if row["status"] == "check" else "Renamed"),
+                            "source": row["source"], "old": short(row["old_path"]),
+                            "new": short(row["new_path"]),
+                            "path": row["old_path"] if undone else row["new_path"],
+                            "undoable": not undone})
+        self.table.set_rows(self.table.all_rows + entries)
 
     def on_event(self, event: dict):
         kind = event["type"]
@@ -144,42 +156,68 @@ class ActivityTab(QWidget):
                                     f"{counts.get('check', 0)} to check, {counts.get('unknown', 0)} not identified")
             self.scan_button.setEnabled(True)
         elif kind in self.SHOWN:
-            old = short(event.get("old_path") or event["path"])
-            new = short(event.get("new_path", "")) if kind in ("renamed", "needs_check", "undo") else event["message"]
-            self._add(_time(), old, new, event.get("source", ""), EVENT_STATUS[kind],
-                      event.get("new_path") or event["path"])
+            renamed = kind in ("renamed", "needs_check", "undo")
+            if kind == "undo":
+                self._mark_undone(event.get("old_path", ""))
+            self.table.prepend({"time": _time(), "status": EVENT_STATUS[kind], "source": event.get("source", ""),
+                                "old": short(event.get("old_path") or event["path"]),
+                                "new": short(event.get("new_path", "")) if renamed else event["message"],
+                                "path": event.get("new_path") or event["path"],
+                                "undoable": kind in ("renamed", "needs_check")}, ACTIVITY_LIMIT)
 
-    def _apply_filter(self):
-        wanted = self.filter.currentData()
-        for row in range(self.table.rowCount()):
-            status = self.table.item(row, 1).text()
-            self.table.setRowHidden(row, wanted is not None and status != wanted)
+    def _mark_undone(self, renamed_path: str):
+        for row in self.table.all_rows:
+            if row.get("undoable") and row["path"] == renamed_path:
+                row["undoable"] = False
 
-    def _path(self) -> str | None:
-        rows = self.table.selectionModel().selectedRows()
-        return self.table.item(rows[0].row(), 0).data(Qt.UserRole) if rows else None
+    def _update_buttons(self):
+        row = self.table.current()
+        for button in self.buttons:
+            button.setEnabled(row is not None)
+        if row is not None:
+            self.buttons[2].setEnabled(bool(row.get("undoable")))
+        self.hint.setVisible(row is None)
+
+    def _path(self):
+        row = self.table.current()
+        if row is None:
+            self.ctl.status("Select a row first.")
+            return None
+        return row["path"]
+
+    def _existing(self):
+        path = self._path()
+        if path and not os.path.exists(path):
+            self.ctl.status(f"{short(path)} is no longer there (moved, renamed or deleted).")
+            return None
+        return path
 
     def _open(self):
-        path = self._path()
+        path = self._existing()
         if path:
+            self.ctl.status(f"Opening {short(path)}")
             open_path(path)
 
     def _reveal(self):
-        path = self._path()
+        path = self._existing()
         if path:
             show_in_folder(path)
 
     def _undo(self):
-        path = self._path()
-        if path:
-            self.ctl.worker.call(lambda w: w.engine.undo_path(path), self.ctl.after_undo)
+        row = self.table.current()
+        if row is None or not row.get("undoable"):
+            self.ctl.status("This row is not a rename that can be undone.")
+            return
+        path = row["path"]
+        self.ctl.worker.call(lambda w: w.engine.undo_path(path), self.ctl.after_undo, self.ctl.error)
 
     def _refresh(self):
-        path = self._path()
+        path = self._existing()
         if path:
             self.ctl.status(f"Refreshing metadata for {short(path)}...")
             self.ctl.worker.call(lambda w: w.engine.refresh(path),
-                                 lambda result: self.ctl.status(f"{short(path)}: {result.message or result.status}"),
+                                 lambda result: self.ctl.status(f"{short(str(result.path))}: "
+                                                                f"{result.message or result.status}"),
                                  self.ctl.error)
 
 
@@ -192,16 +230,25 @@ class AttentionTab(QWidget):
         layout = QVBoxLayout(self)
         self.summary = QLabel("Nothing needs attention.")
         layout.addWidget(self.summary)
-        self.table = _table(["File", "Status", "Reason", "Folder"], "Files needing attention")
-        self.table.setColumnWidth(0, 320)
-        self.table.setColumnWidth(1, 150)
-        self.table.setColumnWidth(2, 360)
-        self.table.itemSelectionChanged.connect(self._update_buttons)
+        self.table = PagedTable(
+            [("File", lambda r: short(r["display_path"])),
+             ("Status", lambda r: FILE_STATUS.get(r["status"], r["status"])),
+             ("Reason", lambda r: REASONS.get(r["status"], "")),
+             ("Folder", lambda r: os.path.dirname(r["display_path"]))],
+            name="Files needing attention", search_text=lambda r: r["display_path"],
+            statuses=[FILE_STATUS[key] for key in ("check", "unknown", "pending", "unreadable")],
+            status_of=lambda r: FILE_STATUS.get(r["status"], r["status"]))
+        for column, width in enumerate((320, 150, 360)):
+            self.table.view.setColumnWidth(column, width)
+        self.table.set_actions([("Open file", self._open), ("Enter DOI...", self._doi),
+                                ("Edit details...", self._edit), ("Retry now", self._retry),
+                                ("Ignore (never ask again)", self._ignore)])
+        self.table.selection_changed.connect(self._update_buttons)
         layout.addWidget(self.table)
         row = QHBoxLayout()
         self.doi_button = QPushButton("Enter &DOI...")
         self.edit_button = QPushButton("&Edit details...")
-        self.retry_button = QPushButton("&Retry now")
+        self.retry_button = QPushButton("Retr&y now")
         self.ignore_button = QPushButton("&Ignore (never ask again)")
         self.open_button = QPushButton("&Open file")
         for button, slot in ((self.doi_button, self._doi), (self.edit_button, self._edit),
@@ -209,28 +256,21 @@ class AttentionTab(QWidget):
                              (self.open_button, self._open)):
             button.clicked.connect(slot)
             row.addWidget(button)
+        self.hint = QLabel("Select a file to fix it (or right-click it).")
+        row.addWidget(self.hint)
         row.addStretch(1)
         layout.addLayout(row)
         ctl.attention_changed.connect(self.show_rows)
         self._update_buttons()
 
     def show_rows(self, rows: list[dict]):
-        self.table.setRowCount(0)
-        for row in rows:
-            index = self.table.rowCount()
-            self.table.insertRow(index)
-            path = row["display_path"]
-            missing = "" if os.path.exists(path) else " (file missing)"
-            values = (short(path) + missing, FILE_STATUS.get(row["status"], row["status"]),
-                      REASONS.get(row["status"], ""), os.path.dirname(path))
-            for column, text in enumerate(values):
-                self.table.setItem(index, column, _item(text, (path, row["status"]) if column == 0 else None))
+        self.table.set_rows(rows)
         self.summary.setText(f"{len(rows)} file(s) need attention." if rows else "Nothing needs attention.")
         self._update_buttons()
 
     def _current(self):
-        rows = self.table.selectionModel().selectedRows()
-        return self.table.item(rows[0].row(), 0).data(Qt.UserRole) if rows else None
+        row = self.table.current()
+        return (row["display_path"], row["status"]) if row else None
 
     def _update_buttons(self):
         current = self._current()
@@ -239,13 +279,23 @@ class AttentionTab(QWidget):
         self.edit_button.setEnabled(fixable)
         for button in (self.retry_button, self.ignore_button, self.open_button):
             button.setEnabled(bool(current))
+        self.hint.setVisible(current is None)
 
     def _done(self, result):
         self.ctl.status(f"{short(str(result.path))}: {result.message or result.status}")
         self.ctl.refresh_attention()
 
+    def _fixable(self):
+        current = self._current()
+        if not current or current[1] not in ("check", "unknown"):
+            self.ctl.status("This works for files marked Check or Not identified.")
+            return None
+        return current[0]
+
     def _doi(self):
-        path, _ = self._current()
+        path = self._fixable()
+        if not path:
+            return
         doi, ok = QInputDialog.getText(self, "Enter DOI", f"DOI for {short(path)} (e.g. 10.1016/j.aap.2025.108048):")
         if ok and doi.strip():
             doi = doi.strip()
@@ -255,23 +305,33 @@ class AttentionTab(QWidget):
             self.ctl.worker.call(lambda w: w.engine.fix(path, doi=doi), self._done, self.ctl.error)
 
     def _edit(self):
-        path, _ = self._current()
+        path = self._fixable()
+        if not path:
+            return
         dialog = DetailsDialog(short(path), self)
         if dialog.exec():
             values = dialog.values()
             self.ctl.worker.call(lambda w: w.engine.fix(path, **values), self._done, self.ctl.error)
 
     def _retry(self):
-        path, _ = self._current()
-        self.ctl.worker.call(lambda w: w.retry(path), self._done, self.ctl.error)
+        current = self._current()
+        if current:
+            path = current[0]
+            self.ctl.status(f"Retrying {short(path)}...")
+            self.ctl.worker.call(lambda w: w.retry(path), self._done, self.ctl.error)
 
     def _ignore(self):
-        path, _ = self._current()
-        self.ctl.worker.call(lambda w: w.engine.keep_name(path), self._done, self.ctl.error)
+        current = self._current()
+        if current:
+            path = current[0]
+            self.ctl.worker.call(lambda w: w.engine.keep_name(path), self._done, self.ctl.error)
 
     def _open(self):
-        path, _ = self._current()
-        open_path(path)
+        current = self._current()
+        if current and os.path.exists(current[0]):
+            open_path(current[0])
+        elif current:
+            self.ctl.status(f"{short(current[0])} is no longer there.")
 
 
 # Folders --------------------------------------------------------------------------
@@ -569,7 +629,7 @@ class SourcesTab(QWidget):
         link = QLabel('<a href="https://openalex.org/settings/api">Get a free key</a>')
         link.setOpenExternalLinks(True)
         row.addWidget(link)
-        form.addRow("&OpenAlex key", row)
+        form.addRow(_buddy("&OpenAlex key", self.openalex), row)
         self.s2 = QLineEdit()
         self.s2.setPlaceholderText("optional")
         row = QHBoxLayout()
@@ -577,7 +637,7 @@ class SourcesTab(QWidget):
         test = QPushButton("T&est")
         test.clicked.connect(lambda: self._test({"semanticscholar"}))
         row.addWidget(test)
-        form.addRow("Semantic &Scholar key", row)
+        form.addRow(_buddy("Semantic &Scholar key", self.s2), row)
         self.email = QLineEdit()
         self.email.setPlaceholderText("you@example.org (sent to Crossref for faster, polite access)")
         form.addRow("&Email", self.email)

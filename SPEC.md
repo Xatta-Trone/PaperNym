@@ -637,8 +637,8 @@ Left-click (double-click on Windows) opens the main window.
 
 | Tab | Contents |
 |---|---|
-| **Activity** | Live list, newest first: time, old name, new name, source, status. Row actions: Open file, Show in folder, Undo, Refresh metadata. Filter by status. "Scan now" button with a progress bar |
-| **Needs attention** | Files with status `check`, `unknown`, `pending`, `unreadable`. For each: the reason, and actions: Enter DOI, Edit details (title, author, year), Retry now, Ignore (never ask again). Ignore records the file as hand-named (status `ok`, no paper), the same as an unticked file in a preview |
+| **Activity** | Live list, newest first: time, old name, new name, source, status. Row actions (buttons enabled once a row is selected, right-click menu, double-click or Enter opens): Open file, Show in folder, Undo, Refresh metadata. Search box and status filter; 200 rows per page with First/Previous/Next/Last, so thousands of files stay responsive (the newest 20,000 rows are kept; older ones stay in History and the CSV export). "Scan now" button with a progress bar |
+| **Needs attention** | Files with status `check`, `unknown`, `pending`, `unreadable`, with the same search box, status filter and paging as Activity. For each: the reason, and actions: Enter DOI, Edit details (title, author, year), Retry now, Ignore (never ask again). Ignore records the file as hand-named (status `ok`, no paper), the same as an unticked file in a preview |
 | **Folders** | Watched folders with a subfolders toggle and a reachable/unreachable indicator; Add, Remove. Exclude patterns list |
 | **Naming** | Preset dropdown listing the fixed presets plus **Custom**. Choosing a preset shows its template read-only. Choosing Custom reveals an editable template field with clickable token buttons, where the user can also type fixed text, and a word-separator choice. Below: title length; year mode. A **live preview** on three sample papers updates as the user types. Invalid templates show the error inline and cannot be saved |
 | **Sources** | OpenAlex key field with a "Get a free key" link and a **Test** button; optional Semantic Scholar key; email; "Search by title" switch with a one-line privacy explanation; "Test all sources" button showing PASS/FAIL per service |
@@ -648,15 +648,17 @@ Left-click (double-click on Windows) opens the main window.
 ### Behaviours
 
 - **First run:** a three-step welcome: (1) choose folders, (2) choose a name format with
-  preview, (3) optional OpenAlex key. Then a **dry-run** of the chosen folders is shown as a
+  preview, (3) optional OpenAlex key and "Start PaperNym when I log in" (ticked by default; not offered in sandbox mode). Then a **dry-run** of the chosen folders is shown as a
   list of `old -> new` with checkboxes; nothing is renamed until the user confirms.
 - **Changing naming settings:** on Save, if any tool-named files exist, ask "Apply to N
   existing files?" with a preview list. Choices: Apply, Not now. State that hand-renamed
   files are left alone, with a checkbox to include them.
 - **Adding a folder:** show how many PDFs it contains and offer Preview before the first
   scan. Show the reference-manager warning when it applies.
-- **Notifications:** one toast per rename when few; one summary toast for a batch ("12
-  papers renamed"). A toast when a file needs attention. Respect the notification setting.
+- **Notifications:** batched, never one per file. During a scan, one toast when it ends
+  ("12 papers renamed", with the attention count in its text). Outside a scan, renames are
+  collected and one toast is shown after 4 s of quiet, or at least every 20 s while files
+  keep arriving; a single rename shows its new name. Respect the notification setting.
 - **Outage:** a non-blocking banner "Metadata services unreachable; new papers are marked
   _CHECK and will be fixed automatically."
 - **Rejected key:** banner on the Sources tab and an attention badge; other sources keep
@@ -665,7 +667,8 @@ Left-click (double-click on Windows) opens the main window.
   blocks on disk or network. Core events are delivered to the UI through Qt signals.
 - **Start at login:** Windows: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
   Linux: a `.desktop` file in `~/.config/autostart`. Start
-  minimised to the tray.
+  minimised to the tray. Each normal start re-syncs the entry with the setting, so it
+  follows the program if it moves.
 - **Single instance:** launching a second copy brings the existing window to the front.
 - **Accessibility:** every action reachable by keyboard; status is never conveyed by colour
   alone.

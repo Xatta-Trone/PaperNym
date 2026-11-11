@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -28,6 +29,8 @@ from .worker import Worker
 
 log = logging.getLogger("papernym")
 REPO_SAMPLES = Path(__file__).resolve().parents[3] / "sample_pdfs"
+TOAST_QUIET_MS = 4000   # one toast after this much quiet...
+TOAST_MAX_WAIT = 20     # ...or at least every 20 s while files keep arriving
 OUTAGE = ("Metadata services unreachable; new papers are marked _CHECK and will be fixed "
           "automatically.")
 
@@ -58,10 +61,12 @@ class Controller(QObject):
         self.recent: list[tuple[str, str]] = []
         self._scan_renamed: list[str] = []
         self._scan_attention = 0
+        self._toast_since: float | None = None
         self._frame = False
         self.worker = Worker(self.home, http_get=http_get, **(worker_kwargs or {}))
         self._animation = QTimer(self, interval=600, timeout=self._animate)
         self._refresh = QTimer(self, singleShot=True, interval=300, timeout=self._refresh_lists)
+        self._toast_timer = QTimer(self, singleShot=True, interval=TOAST_QUIET_MS, timeout=self._flush_toast)
         self.window = MainWindow(self)
         self._build_tray()
         self.worker.event.connect(self.on_event)
@@ -146,8 +151,10 @@ class Controller(QObject):
 
     # Worker signals ---------------------------------------------------------------
     def on_ready(self):
+        if self.interactive and not self.sandbox and not self.first_run:
+            self.sync_start_at_login()
         self.status("Watching." if self.config["folders"] else "Add a folder to start.")
-        self.worker.call(lambda w: w.recent_history(300), self._history_loaded)
+        self.worker.call(lambda w: w.recent_history(5000), self._history_loaded)
         self.window.folders.refresh_states()
         self.window.history.reload()
         self.refresh_attention()
@@ -168,12 +175,11 @@ class Controller(QObject):
         kind = event["type"]
         if kind == "scan_started":
             self.scanning = True
-            self._scan_renamed = []
-            self._scan_attention = 0
+            self._toast_timer.stop()
             self.update_tray()
         elif kind == "scan_finished":
             self.scanning = False
-            self._scan_summary()
+            self._flush_toast()
             self._refresh.start()
             self.update_tray()
         elif kind in ("renamed", "needs_check"):
@@ -181,20 +187,10 @@ class Controller(QObject):
             del self.recent[5:]
             if kind == "renamed" and event.get("source") != "pdf-only":
                 self.window.outage.hide()
-            name = short(event.get("new_path", event["path"]))
-            if self.scanning:
-                self._scan_renamed.append(name)
-                self._scan_attention += kind == "needs_check"
-            elif kind == "renamed":
-                self.notify("Paper renamed", name)
-            else:
-                self.notify("Paper needs checking", f"{name}\nNamed offline; it will be re-checked.")
+            self._queue_toast(short(event.get("new_path", event["path"])), kind == "needs_check")
             self._refresh.start()
         elif kind == "unidentified":
-            if self.scanning:
-                self._scan_attention += 1
-            else:
-                self.notify("Paper not identified", short(event["path"]))
+            self._queue_toast(None, True)
             self._refresh.start()
         elif kind == "undo":
             self._refresh.start()
@@ -211,16 +207,40 @@ class Controller(QObject):
         elif kind == "error":
             self.status(event.get("message", "Error"))
 
-    def _scan_summary(self):
-        renamed = len(self._scan_renamed)
+    def _queue_toast(self, renamed_name: str | None, attention: bool):
+        """Collect renames; one toast after a quiet spell, at the end of a scan, or every 20 s."""
+        if renamed_name:
+            self._scan_renamed.append(renamed_name)
+        self._scan_attention += bool(attention)
+        if self._toast_since is None:
+            self._toast_since = time.monotonic()
+        if self.scanning:
+            return
+        if time.monotonic() - self._toast_since >= TOAST_MAX_WAIT:
+            self._flush_toast()
+        else:
+            self._toast_timer.start()
+
+    def _flush_toast(self):
+        self._toast_timer.stop()
+        renamed, attention = len(self._scan_renamed), self._scan_attention
+        self._scan_renamed, self._scan_attention, self._toast_since = [], 0, None
+        if not renamed and not attention:
+            return
+        lines = []
         if renamed == 1:
-            self.notify("Paper renamed", self._scan_renamed[0])
-        elif renamed > 1:
-            listed = "\n".join(self._scan_renamed[:3]) + ("\n..." if renamed > 3 else "")
-            self.notify(f"{renamed} papers renamed", listed)
-        if self._scan_attention:
-            self.notify("Papers need attention",
-                        f"{self._scan_attention} file(s) need attention; open PaperNym to review.")
+            title = "Paper renamed"
+            lines.append(self._last_names(1))
+        elif renamed:
+            title = f"{renamed} papers renamed"
+        else:
+            title = "Papers need attention"
+        if attention:
+            lines.append(f"{attention} file(s) need attention; open PaperNym to review.")
+        self.notify(title, "\n".join(line for line in lines if line) or "Open PaperNym to see them.")
+
+    def _last_names(self, count: int) -> str:
+        return "\n".join(name for _, name in ((o, short(n)) for o, n in self.recent[:count]))
 
     def _refresh_lists(self):
         self.refresh_attention()
@@ -290,6 +310,14 @@ class Controller(QObject):
         else:
             self.status("Nothing to undo.")
         self._refresh.start()
+
+    def sync_start_at_login(self):
+        """Keep the login entry matching the setting (and the current program path)."""
+        try:
+            if self.config["start_at_login"] or autostart.is_enabled():
+                autostart.set_enabled(self.config["start_at_login"])
+        except OSError as exc:
+            log.warning("cannot update start at login: %s", exc)
 
     def set_start_at_login(self, enabled: bool):
         if self.sandbox:
@@ -370,16 +398,20 @@ class Controller(QObject):
             self.status("Naming saved; existing files keep their names.")
 
     def run_welcome(self):
-        wizard = WelcomeWizard(self.welcome_folders, self.window)
+        wizard = WelcomeWizard(self.welcome_folders, self.window, allow_login=not self.sandbox)
         if not wizard.exec():
             self.save_settings(self.config, lambda _: self.status("Add a folder to start."))
             return
         folders, preset, key = wizard.folders(), wizard.chosen_preset(), wizard.openalex_key()
+        login = wizard.start_at_login()
+        if login:
+            self.set_start_at_login(True)
 
         def build(w):
             warnings = []
             config = w.stored_config()
-            config.update({"format": preset, "word_sep": PRESETS[preset][1], "openalex_key": key})
+            config.update({"format": preset, "word_sep": PRESETS[preset][1], "openalex_key": key,
+                           "start_at_login": login})
             for folder in folders:
                 config = add_folder(config, folder, recursive=True, on_warning=warnings.append)
             return config, warnings, w.preview_folders(config["folders"], config) if config["folders"] else []

@@ -83,8 +83,12 @@ def test_startup_scan_shows_activity_history_and_undo(qapp, make_ctl, tmp_path):
     ctl = make_ctl(folder)
     assert wait(qapp, lambda: (folder / EXPECTED).exists())
     activity = ctl.window.activity.table
-    assert wait(qapp, lambda: activity.rowCount() >= 1)
-    assert activity.item(0, 1).text() == "Renamed" and activity.item(0, 4).text() == EXPECTED
+    assert wait(qapp, lambda: activity.model.rowCount() >= 1)
+    first = activity.model.rows[0]
+    assert first["status"] == "Renamed" and first["new"] == EXPECTED
+    assert not ctl.window.activity.buttons[0].isEnabled()
+    activity.view.selectRow(0)
+    assert all(button.isEnabled() for button in ctl.window.activity.buttons)
     assert ctl.recent[0][1].endswith(EXPECTED)
     assert wait(qapp, lambda: ctl.window.history.tree.topLevelItemCount() == 1)
     batch = ctl.window.history.tree.topLevelItem(0)
@@ -105,8 +109,9 @@ def test_attention_list_badge_and_ignore(qapp, make_ctl, tmp_path):
     assert ctl.tray_state() == ("attention", "1 file(s) need attention")
     assert "Needs attention (1)" in ctl.attention_action.text()
     table = ctl.window.attention.table
-    assert table.item(0, 1).text() == "Not identified"
-    table.selectRow(0)
+    assert table.model.data(table.model.index(0, 1)) == "Not identified"
+    assert not ctl.window.attention.doi_button.isEnabled()
+    table.view.selectRow(0)
     assert ctl.window.attention.doi_button.isEnabled()
     call(qapp, ctl, lambda w: w.engine.keep_name(str(pdf)))
     ctl.refresh_attention()
@@ -204,9 +209,16 @@ def test_scan_notifications_are_batched(qapp, make_ctl, monkeypatch):
     ctl.on_event({"type": "unidentified", "path": "x.pdf", "message": "paper not identified"})
     assert shown == []
     ctl.on_event({"type": "scan_finished", "path": ".", "message": "", "counts": {}})
-    assert shown == ["5 papers renamed", "Papers need attention"]
-    ctl.on_event({"type": "renamed", "path": "z.pdf", "new_path": "z.pdf", "old_path": "y.pdf",
+    assert shown == ["5 papers renamed"]  # one toast, attention count included in its text
+    for index in range(3):  # a burst outside a scan waits for a quiet spell
+        ctl.on_event({"type": "renamed", "path": f"z{index}.pdf", "new_path": f"z{index}.pdf",
+                      "old_path": f"y{index}.pdf", "source": "crossref", "message": ""})
+    assert shown == ["5 papers renamed"] and ctl._toast_timer.isActive()
+    ctl._flush_toast()
+    assert shown == ["5 papers renamed", "3 papers renamed"]
+    ctl.on_event({"type": "renamed", "path": "one.pdf", "new_path": "one.pdf", "old_path": "x.pdf",
                   "source": "crossref", "message": ""})
+    ctl._flush_toast()
     assert shown[-1] == "Paper renamed"
 
 
@@ -324,3 +336,67 @@ def test_first_run_preview_uses_chosen_format(qapp, make_ctl, tmp_path):
     assert pdf.exists() and ctl.worker.engine.config["format"] != "author_year_title"
     call(qapp, ctl, lambda w: w.apply_selection([str(pdf)], [], config))
     assert (folder / expected).exists()
+
+
+def test_paged_table_search_filter_and_pages(qapp):
+    from papernym.gui.table import PagedTable
+
+    table = PagedTable([("Name", lambda r: r["name"]), ("Status", lambda r: r["status"])],
+                       name="t", search_text=lambda r: r["name"], statuses=["A", "B"],
+                       status_of=lambda r: r["status"], page_size=50)
+    table.set_rows([{"name": f"paper_{i:04d}.pdf", "status": "A" if i % 2 else "B"} for i in range(1234)])
+    assert table.model.rowCount() == 50 and "1-50 of 1234" in table.position.text()
+    table._go("last")
+    assert table.model.rowCount() == 34 and "Page 25 of 25" in table.position.text()
+    table.search.setText("paper_12")
+    assert len(table.matches) == 34 and table.page == 0  # 0120-0129 and 1200-1233
+    table.status.setCurrentIndex(table.status.findData("A"))
+    assert all(row["status"] == "A" for row in table.matches) and len(table.matches) == 17
+    table.search.setText("nothing like this")
+    assert table.model.rowCount() == 0 and "No matches" in table.position.text()
+
+
+def test_sources_labels_have_no_literal_ampersand(qapp, make_ctl):
+    from PySide6.QtWidgets import QLabel
+
+    ctl = make_ctl()
+    sources = ctl.window.sources
+    labels = {label.buddy(): label for label in sources.findChildren(QLabel) if label.buddy()}
+    assert labels[sources.openalex].text() == "&OpenAlex key"  # & marks the Alt key, not shown
+    assert labels[sources.s2].text() == "Semantic &Scholar key"
+
+
+def test_welcome_wizard_start_at_login_choice(qapp):
+    assert WelcomeWizard([]).start_at_login() is True
+    assert WelcomeWizard([], allow_login=False).start_at_login() is False
+
+
+def test_activity_buttons_open_reveal_refresh_and_undo(qapp, make_ctl, tmp_path, monkeypatch):
+    from papernym.gui import tabs
+
+    opened, revealed = [], []
+    monkeypatch.setattr(tabs, "open_path", opened.append)
+    monkeypatch.setattr(tabs, "show_in_folder", revealed.append)
+    folder = tmp_path / "papers"
+    folder.mkdir()
+    paper_pdf(folder / "download.pdf")
+    ctl = make_ctl(folder)
+    activity = ctl.window.activity
+    assert wait(qapp, lambda: activity.table.model.rowCount() >= 1)
+    activity.table.view.selectRow(0)
+    open_button, reveal_button, undo_button, refresh_button = activity.buttons
+    open_button.click()
+    reveal_button.click()
+    assert opened == revealed == [str(folder / EXPECTED)]
+    refresh_button.click()
+    assert wait(qapp, lambda: EXPECTED in ctl.window.statusBar().currentMessage()
+                and "Refreshing" not in ctl.window.statusBar().currentMessage())
+    activity.table.view.selectRow(0)
+    undo_button.click()
+    assert wait(qapp, lambda: (folder / "download.pdf").exists())
+    assert wait(qapp, lambda: activity.table.model.rows[0]["status"] == "Undone")
+    activity.table.view.selectRow(1)  # the original rename row can no longer be undone
+    assert not undo_button.isEnabled() and open_button.isEnabled()
+    open_button.click()  # the renamed file is gone: a message, not a silent failure
+    assert "no longer there" in ctl.window.statusBar().currentMessage()
+    assert len(opened) == 1
