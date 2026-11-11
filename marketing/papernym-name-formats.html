@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PaperNym name formats</title>
+<style>
+  :root {
+    --teal-900: #062f38;
+    --teal-700: #0B5563;
+    --amber: #FFB020;
+    --ink: #0f2a30;
+    --muted: #6b7f84;
+    --card: #f5f8f8;
+    --line: #dde6e7;
+    --c-year: #c26a00;
+    --c-author: #0B5563;
+    --c-title: #0f2a30;
+    --c-journal: #7b4bb3;
+    --c-sep: #9aabb0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 1500px; }
+  body {
+    font-family: "Segoe UI", "Segoe UI Variable Text", system-ui, sans-serif;
+    color: #fff;
+    background:
+      radial-gradient(900px 600px at 95% 0%, rgba(255,176,32,.28), transparent 60%),
+      linear-gradient(160deg, #0d6470 0%, #0a4a56 45%, var(--teal-900) 100%);
+    padding: 64px 80px 0;
+    overflow: hidden;
+    position: relative;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 76px; height: 76px; border-radius: 18px; }
+  .brand b { display: block; font-size: 44px; font-weight: 700; letter-spacing: -.5px; line-height: 1; }
+  .brand span { font-size: 18px; opacity: .8; }
+  .pill { background: var(--amber); color: var(--teal-900); font-weight: 700; font-size: 19px;
+          padding: 12px 22px; border-radius: 999px; }
+  h1 { font-size: 66px; line-height: 1.05; font-weight: 800; letter-spacing: -1.5px; margin-top: 44px; }
+  h1 em { font-style: normal; color: var(--amber); }
+  .lede { font-size: 23px; opacity: .88; margin-top: 14px; line-height: 1.35; }
+  .lede code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 20px;
+               background: rgba(255,255,255,.12); padding: 2px 8px; border-radius: 6px; }
+
+  .card { background: var(--card); color: var(--ink); border-radius: 22px; margin-top: 32px;
+          box-shadow: 0 18px 40px rgba(0,0,0,.28); padding: 18px 30px 16px; }
+  .legend { display: flex; gap: 22px; align-items: center; font-size: 16px; font-weight: 600;
+            padding-bottom: 12px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 7px;
+              vertical-align: -1px; }
+  .legend .src { margin-left: auto; font-family: "Cascadia Mono", Consolas, monospace; font-weight: 400;
+                 font-size: 14px; }
+  .group { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+           color: var(--muted); margin: 16px 0 3px; }
+  .row { display: grid; grid-template-columns: 250px 1fr; align-items: center; height: 35px; }
+  .row .name { font-family: "Cascadia Mono", Consolas, monospace; font-size: 13.5px; color: var(--muted); }
+  .row .name .def { font-family: "Segoe UI", sans-serif; font-size: 12px; font-weight: 700; color: #0d7a52;
+                    background: #def3ea; padding: 1px 7px; border-radius: 999px; margin-left: 6px; }
+  .row .ex { font-family: "Cascadia Mono", Consolas, monospace; font-size: 14.5px; white-space: nowrap; }
+  .y { color: var(--c-year); font-weight: 700; }
+  .a { color: var(--c-author); font-weight: 700; }
+  .t { color: var(--c-title); }
+  .j { color: var(--c-journal); font-weight: 600; }
+  .s, .x { color: var(--c-sep); }
+
+  .custom { margin-top: 26px; display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .custom .label { font-size: 22px; font-weight: 700; }
+  .custom .label span { font-weight: 400; opacity: .85; font-size: 19px; }
+  .custom .line { font-family: "Cascadia Mono", Consolas, monospace; font-size: 17px;
+                  background: rgba(0,0,0,.22); border-radius: 12px; padding: 14px 20px; line-height: 1.7; }
+  .custom .line .k { color: var(--amber); }
+  .custom .out { color: #cfe6e9; }
+  .custom .out b { color: #fff; font-weight: 600; }
+
+  footer { position: absolute; left: 80px; right: 80px; bottom: 0; height: 92px;
+           display: flex; justify-content: space-between; align-items: center;
+           border-top: 1px solid rgba(255,255,255,.18); font-size: 21px; }
+  footer code { font-family: "Cascadia Mono", Consolas, monospace; color: var(--amber); font-weight: 700; }
+  footer b { font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img src="../assets/papernym-icon.svg" alt="">
+    <div><b>PaperNym</b><span>PAY-per-nim · for researchers</span></div>
+  </div>
+  <div class="pill">Free &amp; open source</div>
+</header>
+
+<h1>One paper. <em>15 ways</em><br>to name it.</h1>
+<p class="lede">Pick the style your field (or your supervisor) likes. Switch any time with
+  <code>papernym set-format</code>, then rename earlier papers to match.</p>
+
+<section class="card" id="card">
+  <div class="legend">
+    <span><i style="background:var(--c-year)"></i>year</span>
+    <span><i style="background:var(--c-author)"></i>author</span>
+    <span><i style="background:var(--c-title)"></i>title</span>
+    <span><i style="background:var(--c-journal)"></i>journal</span>
+    <span class="src">sample: Smith, Jones &amp; Lee (2025), Accid Anal Prev</span>
+  </div>
+</section>
+
+<section class="custom">
+  <div class="label">…or write your own template <span>with {year} {author} {authors} {title} {shorttitle} {journal}</span></div>
+  <div class="line"><span class="k">"[{journal}] {author} {year} - {shorttitle}"</span><br>
+    <span class="out">→ <b>[Accid Anal Prev] Smith 2025 - Deep learning for crash severity prediction.pdf</b></span></div>
+</section>
+
+<footer>
+  <span><code>pip install papernym</code> &nbsp;·&nbsp; Windows installer</span>
+  <b>github.com/Xatta-Trone/papernym</b>
+</footer>
+
+<script>
+  // Tokens: y=year, a=author, t=title, j=journal, s=separator text. Output matches `papernym formats`.
+  const T = "Deep_learning_for_crash_severity_prediction_models";
+  const ST = "Deep_learning_for_crash_severity_prediction";
+  const TS = "Deep learning for crash severity prediction models";
+  const groups = [
+    ["Year first", [
+      ["year_author_title", true, [["y","2025"],["s","_"],["a","Smith"],["s","_"],["t",T]]],
+      ["year_authors_title", false, [["y","2025"],["s","_"],["a","Smith_et_al"],["s","_"],["t",T]]],
+      ["year_author_shorttitle", false, [["y","2025"],["s","_"],["a","Smith"],["s","_"],["t",ST]]],
+      ["year_author_journal_title", false, [["y","2025"],["s","_"],["a","Smith"],["s","_"],["j","Accid_Anal_Prev"],["s","_"],["t",T]]],
+    ]],
+    ["Author first", [
+      ["author_year_title", false, [["a","Smith"],["s","_"],["y","2025"],["s","_"],["t",T]]],
+      ["authors_year_title", false, [["a","Smith_et_al"],["s","_"],["y","2025"],["s","_"],["t",T]]],
+      ["author_year_shorttitle", false, [["a","Smith"],["s","_"],["y","2025"],["s","_"],["t",ST]]],
+      ["author_year_journal", false, [["a","Smith"],["s","_"],["y","2025"],["s","_"],["j","Accid_Anal_Prev"]]],
+      ["author_year", false, [["a","Smith"],["s","_"],["y","2025"]]],
+    ]],
+    ["Title first & citekey", [
+      ["title_author_year", false, [["t",T],["s","_"],["a","Smith"],["s","_"],["y","2025"]]],
+      ["title_only", false, [["t",T]]],
+      ["citekey", false, [["a","Smith"],["y","2025"],["t","DeepLearningForCrashSeverityPrediction"]]],
+    ]],
+    ["Readable, with spaces", [
+      ["author_year_title_spaces", false, [["a","Smith"],["s"," ("],["y","2025"],["s",") "],["t",TS]]],
+      ["authors_year_title_spaces", false, [["a","Smith et al"],["s"," ("],["y","2025"],["s",") "],["t",TS]]],
+      ["authors_year_title_zotero", false, [["a","Smith et al"],["s"," - "],["y","2025"],["s"," - "],["t",TS]]],
+    ]],
+  ];
+  const card = document.getElementById("card");
+  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  for (const [label, rows] of groups) {
+    card.insertAdjacentHTML("beforeend", `<div class="group">${label}</div>`);
+    for (const [name, isDefault, parts] of rows) {
+      const ex = parts.map(([k, v]) => `<span class="${k}">${esc(v)}</span>`).join("") + `<span class="x">.pdf</span>`;
+      card.insertAdjacentHTML("beforeend",
+        `<div class="row"><span class="name">${name}${isDefault ? '<span class="def">default</span>' : ''}</span><span class="ex">${ex}</span></div>`);
+    }
+  }
+</script>
+</body>
+</html>

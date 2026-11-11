@@ -20,6 +20,7 @@
   <a href="https://github.com/Xatta-Trone/papernym/releases"><img alt="GitHub downloads" src="https://img.shields.io/github/downloads/Xatta-Trone/papernym/total?label=downloads&logo=github&color=0B5563"></a>
   <a href="https://github.com/Xatta-Trone/papernym/blob/main/LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0B5563">
+  <img alt="Ubuntu 22.04 and newer" src="https://img.shields.io/badge/Ubuntu-22.04%2B-0B5563">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-FFB020">
 </p>
 
@@ -92,6 +93,27 @@ choose **Start PaperNym when I log in** and a desktop shortcut.
 
 Requirements: Windows 10 or 11 (64-bit) and an internet connection for lookups.
 
+### Ubuntu and Debian
+
+1. Download `papernym_<version>_amd64.deb` from the
+   [latest release](https://github.com/Xatta-Trone/papernym/releases/latest).
+2. Install it; `apt` also installs the few system libraries Qt needs:
+
+   ```bash
+   sudo apt install ./papernym_<version>_amd64.deb
+   ```
+
+3. Open **PaperNym** from the app menu (or run `papernym-gui`). The command line is
+   `papernym`.
+
+The package installs into `/opt/papernym` and needs Ubuntu 22.04 or newer, or Debian 12 or
+newer (64-bit). No Python is required.
+
+The tray icon appears on Ubuntu, KDE and most other desktops. Stock GNOME on some other
+distributions hides tray icons unless the
+[AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/)
+is installed; without a tray, PaperNym keeps its window open and closing it quits.
+
 ### With pip (Python 3.10+)
 
 PaperNym is on [PyPI](https://pypi.org/project/papernym/). [pipx](https://pipx.pypa.io)
@@ -109,10 +131,11 @@ pip install "papernym[gui]"
 ```
 
 This gives you `papernym` (command line) and `papernym-gui` (tray app). Upgrade with
-`pipx upgrade papernym` or `pip install -U papernym`.
+`pipx upgrade papernym` or `pip install -U papernym`. On Linux, the tray app adds itself to
+your app menu the first time it runs (or run `papernym menu-entry`).
 
-Windows is the tested platform. The command line is plain Python and should work on Linux
-and macOS too; tested Linux support is on the [roadmap](#roadmap).
+Windows and Ubuntu are tested. The command line is plain Python and should work on macOS
+too, but it has not been tested there.
 
 ## Getting started
 
@@ -141,6 +164,7 @@ The main window, opened from the tray icon, has these tabs:
 | About | Version, links and the update check |
 
 Closing the window keeps PaperNym running in the tray; use **Quit** in the tray menu to exit.
+On a desktop without a tray, closing the window quits PaperNym.
 
 ### Command line
 
@@ -317,8 +341,15 @@ the program, its Start-menu and login entries, and the `PATH` entry. It asks whe
 remove your settings, history and saved keys too (the default is to keep them). Your PDFs
 are never touched.
 
-Installed with pip or pipx: `pipx uninstall papernym` or `pip uninstall papernym`. Settings
-stay in the folder shown by `papernym show`; delete it by hand if you no longer need them.
+On Ubuntu or Debian: `sudo apt remove papernym`. If you turned on Start at login, also
+delete `~/.config/autostart/papernym.desktop`.
+
+Installed with pip or pipx: `pipx uninstall papernym` or `pip uninstall papernym`. On
+Linux, run `papernym menu-entry --remove` first to remove the app-menu entry.
+
+Settings stay in the folder shown by `papernym show` (Windows: `%APPDATA%\PaperNym`, Linux:
+`~/.config/PaperNym`); delete it by hand if you no longer need them. Your PDFs are never
+touched.
 
 ## Development
 
@@ -350,7 +381,7 @@ Done:
 Planned:
 
 - Code-signed Windows releases
-- Tested Linux support for the tray app and the command line
+- Packages for other Linux distributions (Flatpak or AppImage)
 
 What changed in each version is in the
 [changelog](https://github.com/Xatta-Trone/papernym/blob/main/CHANGELOG.md).

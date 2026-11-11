@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import errno
 import fnmatch
 import hashlib
 import json
@@ -58,19 +59,35 @@ def stable_file(path: Path, timeout: float = 120, pause: float = 1.5,
     return False
 
 
+# os.link errors that mean "this filesystem has no hard links", not "this file is busy".
+NO_HARD_LINKS = {errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP, errno.ENOSYS, errno.EMLINK}
+
+
 def move_no_replace(source: Path, target: Path) -> None:
     """Move within one folder without replacing a concurrently created target."""
     if target.exists():
         raise FileExistsError(target)
     if os.name == "nt":
         source.rename(target)  # Windows rename refuses an occupied destination.
-    else:
+        return
+    try:
         os.link(source, target)  # Atomic exclusive creation on the same filesystem.
-        try:
-            source.unlink()
-        except OSError:
-            target.unlink()
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        # FAT/exFAT drives and some network shares have no hard links. Fall back to a plain
+        # rename after a fresh check: not atomic, but the window is tiny.
+        if exc.errno not in NO_HARD_LINKS:
             raise
+        if target.exists():
+            raise FileExistsError(target) from exc
+        source.rename(target)
+        return
+    try:
+        source.unlink()
+    except OSError:
+        target.unlink()
+        raise
 
 
 class Engine:

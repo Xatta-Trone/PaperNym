@@ -2,6 +2,18 @@
 
 All notable changes to PaperNym. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- Linux: a `.deb` package for Ubuntu 22.04+ and Debian 12+ on each release, with the tray
+  app, the command line, an app-menu entry and icons. The tests now also run on Ubuntu.
+- Linux pip/pipx installs add PaperNym to the app menu (`papernym menu-entry`, or
+  automatically when the tray app starts).
+- Linux: **Show in folder** selects the file in the file manager.
+- Fixed: on a desktop without a tray, closing the window hid PaperNym with no way to bring
+  it back; it now quits.
+- Fixed: renaming failed on Linux drives without hard links (FAT/exFAT USB drives, some
+  network shares).
+
 ## 0.1.3 — 2026-11-11
 
 - README: install with `pip` or `pipx` from PyPI, PyPI version badge, uninstall for pip

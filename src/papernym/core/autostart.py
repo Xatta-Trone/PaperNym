@@ -1,4 +1,5 @@
-"""Start PaperNym at login: Windows Run key, or a Linux autostart .desktop file."""
+"""Desktop integration: Start at login (Windows Run key, or a Linux autostart .desktop file) and,
+on Linux, the app-menu entry for pip/pipx installs."""
 
 from __future__ import annotations
 
@@ -8,6 +9,7 @@ from pathlib import Path
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE = "PaperNym"
+DESKTOP_ID = "papernym"  # papernym.desktop; the GUI sets the same desktop file name
 
 
 def launch_command() -> str:
@@ -21,9 +23,41 @@ def launch_command() -> str:
     return f'"{exe}" -m papernym.gui'
 
 
+def icon_path() -> Path:
+    """The packaged 1024 px app icon (a .desktop Icon= may be an absolute path)."""
+    return Path(__file__).resolve().parents[1] / "gui" / "icons" / "papernym.png"
+
+
+def desktop_entry(command: str, *, autostart: bool = False) -> str:
+    lines = ["[Desktop Entry]", "Type=Application", "Name=PaperNym", "GenericName=Paper renamer",
+             "Comment=Rename research paper PDFs from their publication metadata",
+             f"Exec={command}", f"Icon={icon_path()}", "Terminal=false",
+             "Categories=Office;Education;Utility;", "Keywords=pdf;paper;rename;doi;arxiv;research;",
+             "StartupWMClass=PaperNym"]
+    if autostart:
+        lines.append("X-GNOME-Autostart-enabled=true")
+    return "\n".join(lines) + "\n"
+
+
+def _write_if_changed(path: Path, text: str) -> bool:
+    try:
+        if path.read_text(encoding="utf-8") == text:
+            return False
+    except OSError:
+        pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return True
+
+
 def _desktop_file() -> Path:
-    base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / "autostart" / "papernym.desktop"
+    base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    return base / "autostart" / f"{DESKTOP_ID}.desktop"
+
+
+def menu_file() -> Path:
+    base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / "applications" / f"{DESKTOP_ID}.desktop"
 
 
 def is_enabled() -> bool:
@@ -54,11 +88,26 @@ def set_enabled(enabled: bool) -> None:
         return
     path = _desktop_file()
     if enabled:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("[Desktop Entry]\nType=Application\nName=PaperNym\n"
-                        f"Exec={launch_command()}\nX-GNOME-Autostart-enabled=true\n", encoding="utf-8")
+        _write_if_changed(path, desktop_entry(launch_command(), autostart=True))
     else:
         path.unlink(missing_ok=True)
+
+
+def needs_menu_entry() -> bool:
+    """Linux pip/pipx installs need their own menu entry; the .deb and Windows ship one."""
+    return sys.platform.startswith("linux") and not getattr(sys, "frozen", False)
+
+
+def install_menu_entry() -> bool:
+    """Write (or refresh) the user's app-menu entry. True if the file changed."""
+    return _write_if_changed(menu_file(), desktop_entry(launch_command() + " --show"))
+
+
+def remove_menu_entry() -> bool:
+    path = menu_file()
+    existed = path.exists()
+    path.unlink(missing_ok=True)
+    return existed
 
 
 APP_KEY = r"Software\PaperNym"
@@ -83,4 +132,3 @@ def take_installer_choice() -> bool | None:
     except OSError:
         return None
     return bool(value)
-

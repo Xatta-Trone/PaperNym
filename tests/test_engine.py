@@ -1,10 +1,13 @@
+import errno
+import os
 from pathlib import Path
 
 import pytest
 
 from papernym.core.config import default_config
 from papernym.core.db import Database
-from papernym.core.engine import Engine
+from papernym.core import engine as engine_module
+from papernym.core.engine import Engine, move_no_replace
 from papernym.core.identify import IdentifyOutcome, LookupStats, PaperMatch
 from papernym.core.pdfread import PdfReadError
 
@@ -92,17 +95,47 @@ def test_locked_rename_becomes_pending_and_retries_without_lookup(tmp_path, monk
     fake = FakeIdentifier(outcome())
     with Database(tmp_path / "home") as db:
         worker = engine(db, fake)
-        original = Path.rename
 
-        def fail_once(self, target):
+        def in_use(_source, _target):
             raise PermissionError("in use")
 
         with monkeypatch.context() as patch:
-            patch.setattr(Path, "rename", fail_once)
+            patch.setattr(engine_module, "move_no_replace", in_use)
             assert worker.process(path).status == "pending"
         assert db.get_file(path)["status"] == "pending"
         assert worker.process(path, retry=True).status == "ok"
         assert fake.calls == 1
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the hard-link path is POSIX only")
+def test_move_falls_back_to_rename_without_hard_links(tmp_path, monkeypatch):
+    source, target = tmp_path / "a.pdf", tmp_path / "b.pdf"
+    source.write_bytes(b"PDF")
+
+    def no_links(_src, _dst):
+        raise OSError(errno.EPERM, "Operation not permitted")  # what vfat/exFAT return
+
+    monkeypatch.setattr(engine_module.os, "link", no_links)
+    move_no_replace(source, target)
+    assert target.read_bytes() == b"PDF" and not source.exists()
+    source.write_bytes(b"NEW")
+    with pytest.raises(FileExistsError):
+        move_no_replace(source, target)
+    assert target.read_bytes() == b"PDF"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the hard-link path is POSIX only")
+def test_move_does_not_hide_other_link_errors(tmp_path, monkeypatch):
+    source = tmp_path / "a.pdf"
+    source.write_bytes(b"PDF")
+
+    def busy(_src, _dst):
+        raise OSError(errno.EIO, "I/O error")
+
+    monkeypatch.setattr(engine_module.os, "link", busy)
+    with pytest.raises(OSError):
+        move_no_replace(source, tmp_path / "b.pdf")
+    assert source.exists()
 
 
 def test_hand_rename_and_move_are_respected(tmp_path):

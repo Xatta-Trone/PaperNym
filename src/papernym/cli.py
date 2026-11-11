@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import logging
 import os
 import re
@@ -352,6 +353,22 @@ def _key_state(stored: str, variable: str, where: str) -> str:
     return f"set (in {where})" if stored else "not set"
 
 
+def cmd_menu_entry(ctx: Context) -> int:
+    from .core import autostart
+
+    if not sys.platform.startswith("linux"):
+        raise CliError("menu-entry is for Linux; the Windows installer adds the Start-menu entry")
+    if ctx.args.remove:
+        removed = autostart.remove_menu_entry()
+        ctx.out.line(f"Removed {autostart.menu_file()}" if removed else "No menu entry to remove")
+        return 0
+    if importlib.util.find_spec("PySide6") is None:
+        raise CliError('the tray app is not installed; install it with: pipx install "papernym[gui]"')
+    autostart.install_menu_entry()
+    ctx.out.line(f"PaperNym is in your app menu ({autostart.menu_file()})")
+    return 0
+
+
 def cmd_show(ctx: Context) -> int:
     config = ctx.settings()
     out = ctx.out
@@ -658,7 +675,8 @@ def cmd_compare(ctx: Context, sleep: Callable = time.sleep) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="papernym", description="Rename academic paper PDFs using scholarly metadata.",
-        epilog="Settings live in %APPDATA%\\PaperNym (or $PAPERNYM_HOME). "
+        epilog="Settings live in %APPDATA%\\PaperNym on Windows, ~/.config/PaperNym elsewhere "
+               "(or $PAPERNYM_HOME). "
                "Typical start: papernym add-folder PATH, then papernym scan --dry-run. "
                "To rename the PDFs in the current folder once: papernym scan .")
     parser.add_argument("--version", action="version", version=f"papernym {__version__}")
@@ -697,6 +715,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = command("set-title-search", cmd_set_title_search, "Allow sending titles to search services")
     p.add_argument("state", choices=["on", "off"])
     command("show", cmd_show, "Print settings, folders and the settings-folder path")
+    p = command("menu-entry", cmd_menu_entry, "Add PaperNym to the Linux app menu (pip/pipx installs)")
+    p.add_argument("--remove", action="store_true", help="remove the menu entry instead")
     p = command("scan", cmd_scan, "Process every PDF in the watched folders, or in FOLDER, once")
     p.add_argument("folder", nargs="?",
                    help="scan only this folder (e.g. . for the current one); it is not added to the watch list")

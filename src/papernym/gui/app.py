@@ -124,6 +124,11 @@ class Controller(QObject):
         self.tray.show()
         self.update_tray()
 
+    @staticmethod
+    def has_tray() -> bool:
+        """Whether the desktop shows tray icons (stock GNOME does not without an extension)."""
+        return QSystemTrayIcon.isSystemTrayAvailable()
+
     def _tray_activated(self, reason):
         wanted = (QSystemTrayIcon.DoubleClick if sys.platform == "win32" else QSystemTrayIcon.Trigger)
         if reason == wanted:
@@ -688,6 +693,7 @@ def main(argv: list[str] | None = None) -> int:
         log.setLevel(logging.DEBUG)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("PaperNym")
+    app.setDesktopFileName(autostart.DESKTOP_ID)  # Wayland/GNOME match the window to papernym.desktop
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(app_icon())
     welcome = []
@@ -704,6 +710,11 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["PAPERNYM_HOME"] = str(home)
         welcome = [str(papers)]
         log.info("sandbox: settings %s, papers %s (%d sample PDFs)", home, papers, count)
+    elif autostart.needs_menu_entry():
+        try:
+            autostart.install_menu_entry()  # pip/pipx on Linux: show up in the app menu
+        except OSError as exc:
+            log.warning("could not write the app-menu entry: %s", exc)
     home = settings_dir()
     server = QLocalServer()
     if not server.listen(name):
@@ -722,7 +733,7 @@ def main(argv: list[str] | None = None) -> int:
             socket.readyRead.connect(lambda: (socket.readAll(), ctl.show_window()))
 
     server.newConnection.connect(on_connection)
-    if args.show or not QSystemTrayIcon.isSystemTrayAvailable():
+    if args.show or not ctl.has_tray():
         ctl.show_window()
     app.aboutToQuit.connect(lambda: ctl.worker.stop() if ctl.worker.isRunning() else None)
     return app.exec()

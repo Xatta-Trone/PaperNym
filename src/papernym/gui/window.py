@@ -1,8 +1,9 @@
-"""Main window: banner area above the seven tabs. Closing hides it; only Quit exits."""
+"""Main window: banner area above the seven tabs. Closing hides it to the tray (or quits when
+the desktop has no tray)."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QMainWindow, QPushButton, QTabWidget,
                                QVBoxLayout, QWidget)
@@ -105,7 +106,7 @@ class MainWindow(QMainWindow):
         for index in range(self.tabs.count()):
             QShortcut(QKeySequence(f"Ctrl+{index + 1}"), self,
                       activated=lambda i=index: self.tabs.setCurrentIndex(i))
-        QShortcut(QKeySequence("Ctrl+W"), self, activated=self.hide)
+        QShortcut(QKeySequence("Ctrl+W"), self, activated=self.close)
 
     def set_attention_count(self, count: int):
         index = self.tabs.indexOf(self.attention)
@@ -125,4 +126,9 @@ class MainWindow(QMainWindow):
             event.accept()
             return
         event.ignore()
-        self.hide()
+        if self.ctl.has_tray():
+            self.hide()
+        else:
+            # No tray to come back to (for example GNOME without the AppIndicator
+            # extension), so a hidden window could never be reopened: closing quits.
+            QTimer.singleShot(0, self.ctl.quit)
