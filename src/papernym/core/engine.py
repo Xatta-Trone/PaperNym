@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .db import Database
+from .db import Database, path_key
 from .identify import Identifier, PaperMatch
 from .naming import unique_path
 from .pdfread import PdfReadError, read_pdf
@@ -204,3 +204,56 @@ class Engine:
             return ProcessResult("unknown", path, "paper not identified")
         return self._rename(path, fp, outcome.match, attempts, batch,
                             given_name=prior["given_name"] if prior else None)
+
+    @staticmethod
+    def _inside(path: str | Path, root: str | Path, recursive: bool = True) -> bool:
+        try:
+            relative = Path(path_key(path)).relative_to(Path(path_key(root)))
+            return recursive or len(relative.parts) == 1
+        except ValueError:
+            return False
+
+    def _scan_files(self, folders: list[dict]) -> tuple[list[Path], list[dict]]:
+        files = []
+        reachable = []
+        seen = set()
+        for folder in folders:
+            root = Path(folder["path"])
+            if not root.is_dir():
+                self._event("folder_unavailable", root, "folder is unavailable")
+                continue
+            reachable.append(folder)
+            iterator = root.rglob("*") if folder.get("recursive", True) else root.iterdir()
+            for path in iterator:
+                if path.suffix.lower() == ".pdf" and path.is_file() and path_key(path) not in seen:
+                    seen.add(path_key(path))
+                    files.append(path)
+        return sorted(files), reachable
+
+    def prune(self, reachable: list[dict]) -> int:
+        """Forget deleted files only beneath currently reachable watched folders."""
+        removed = 0
+        for row in self.db.conn.execute("SELECT path,display_path FROM files").fetchall():
+            if (not Path(row["display_path"]).exists()
+                    and any(self._inside(row["display_path"], folder["path"],
+                                         folder.get("recursive", True)) for folder in reachable)):
+                self.db.delete_file(row["path"])
+                removed += 1
+        return removed
+
+    def scan(self, folders: list[dict] | None = None) -> dict[str, int]:
+        """Process every eligible PDF, emit progress, and prune disappeared rows."""
+        folders = self.config.get("folders", []) if folders is None else folders
+        files, reachable = self._scan_files(folders)
+        counts = {key: 0 for key in ("ok", "check", "unknown", "pending", "unreadable", "skipped")}
+        self._event("scan_started", Path("."), f"scanning {len(files)} PDFs", total=len(files))
+        batch = self._batch()
+        for index, path in enumerate(files, 1):
+            result = self.process(path, retry=True, batch=batch)
+            counts[result.status] += 1
+            self._event("scan_progress", path, f"{index}/{len(files)}", done=index, total=len(files))
+        removed = self.prune(reachable)
+        counts["pruned"] = removed
+        counts["total"] = len(files)
+        self._event("scan_finished", Path("."), f"scan finished: {len(files)} PDFs", counts=counts)
+        return counts

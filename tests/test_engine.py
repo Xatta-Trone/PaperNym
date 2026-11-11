@@ -150,3 +150,36 @@ def test_excludes_file_globs_and_folder_names_before_reading(tmp_path):
         for path in paths:
             assert worker.process(path).status == "skipped"
             assert db.get_file(path) is None
+
+
+def test_scan_emits_progress_and_prunes_only_reachable_folders(tmp_path):
+    live = tmp_path / "live"
+    offline = tmp_path / "offline"
+    live.mkdir()
+    offline.mkdir()
+    (live / "one.pdf").write_bytes(b"one")
+    (live / "two.PDF").write_bytes(b"two")
+    offline_file = offline / "three.pdf"
+    offline_file.write_bytes(b"three")
+    events = []
+    config = default_config()
+    config["folders"] = [{"path": str(live), "recursive": True},
+                         {"path": str(offline), "recursive": True}]
+    with Database(tmp_path / "home") as db:
+        worker = Engine(config, db, FakeIdentifier(outcome()), events.append,
+                        read_pdf_fn=lambda _: {"text": "paper"}, stable_fn=lambda _: True)
+        first = worker.scan()
+        assert first["total"] == 3
+        assert [event["type"] for event in events].count("scan_progress") == 3
+        assert events[-1]["type"] == "scan_finished"
+        original_rows = db.conn.execute("SELECT display_path FROM files").fetchall()
+        lost = next(Path(row[0]) for row in original_rows if Path(row[0]).parent == offline)
+        lost.unlink()
+        offline.rmdir()
+        live_lost = next(Path(row[0]) for row in original_rows if Path(row[0]).parent == live)
+        live_lost.unlink()
+        second = worker.scan()
+        assert second["pruned"] == 1
+        assert db.get_file(live_lost) is None
+        assert db.get_file(lost) is not None
+        assert any(event["type"] == "folder_unavailable" for event in events)

@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** scan progress events and pruning
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 6 passed
+- **Next task:** dry-run scan and reformat
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 7 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -55,7 +55,7 @@ Rules:
 - [x] `core/engine.py`: per-file logic and all five statuses
 - [x] Hand-renamed, moved, annotated and copied files
 - [x] Exclude list
-- [ ] Scan with progress events; prune
+- [x] Scan with progress events; prune
 - [ ] Dry run (scan and reformat)
 - [ ] Reformat, including `include_manual`
 - [ ] Undo by batch and by last N
@@ -333,3 +333,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 6 passed; excluded temporary PDFs were never read or stored.
 - Decisions: Match folder exclusions against path components and file exclusions against the basename.
 - Next: Scan watched folders with progress events and prune missing file rows safely.
+
+### 2026-11-10  M3  Scan and prune
+- Done: Added configured-folder scans with start/progress/finish events, one batch per scan, and pruning only within reachable watched folders.
+- Files: `src/papernym/core/engine.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 7 passed; an unavailable folder's row survived pruning.
+- Decisions: Finish processing the scan before pruning so moved files can be recognized first.
+- Next: Add database-free dry runs for scan and reformat.
