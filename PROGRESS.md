@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** dry-run scan and reformat
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 7 passed
+- **Next task:** reformat, including `include_manual`
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 9 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -56,7 +56,7 @@ Rules:
 - [x] Hand-renamed, moved, annotated and copied files
 - [x] Exclude list
 - [x] Scan with progress events; prune
-- [ ] Dry run (scan and reformat)
+- [x] Dry run (scan and reformat)
 - [ ] Reformat, including `include_manual`
 - [ ] Undo by batch and by last N
 - [ ] Manual fix (by DOI, by edited fields) and refresh
@@ -340,3 +340,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 7 passed; an unavailable folder's row survived pruning.
 - Decisions: Finish processing the scan before pruning so moved files can be recognized first.
 - Next: Add database-free dry runs for scan and reformat.
+
+### 2026-11-10  M3  Preview scans and reformatting
+- Done: Added dry-run scan and reformat paths with reserved target names and preview events, leaving PDFs, file rows, and history unchanged.
+- Files: `src/papernym/core/engine.py`, `src/papernym/core/identify.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 9 passed.
+- Decisions: Identification can read the cache in preview mode while suppressing cache writes; previews reserve names so two files never show one target.
+- Next: Complete saved-metadata reformatting and the manual-name option.

@@ -183,3 +183,42 @@ def test_scan_emits_progress_and_prunes_only_reachable_folders(tmp_path):
         assert db.get_file(live_lost) is None
         assert db.get_file(lost) is not None
         assert any(event["type"] == "folder_unavailable" for event in events)
+
+
+def test_dry_scan_reserves_names_without_writing_files_or_database(tmp_path):
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    first, second = papers / "one.pdf", papers / "two.pdf"
+    first.write_bytes(b"one")
+    second.write_bytes(b"two")
+    events = []
+    cfg = default_config()
+    cfg["folders"] = [{"path": str(papers), "recursive": True}]
+    with Database(tmp_path / "home") as db:
+        worker = Engine(cfg, db, FakeIdentifier(outcome()), events.append,
+                        read_pdf_fn=lambda _: {"text": "paper"}, stable_fn=lambda _: True)
+        counts = worker.scan(dry_run=True)
+        assert counts["preview"] == 2
+        targets = [event["new_path"] for event in events if event["type"] == "preview"]
+        assert len(set(targets)) == 2
+        assert any(name.endswith("_dup2.pdf") for name in targets)
+        assert first.read_bytes() == b"one" and second.read_bytes() == b"two"
+        assert db.conn.execute("SELECT count(*) FROM files").fetchone()[0] == 0
+        assert db.history() == []
+
+
+def test_dry_reformat_uses_saved_metadata_without_writes(tmp_path):
+    path = tmp_path / "one.pdf"
+    path.write_bytes(b"PDF")
+    events = []
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, FakeIdentifier(outcome()), events)
+        named = worker.process(path).path
+        before = len(db.history())
+        worker.config["format"] = "{author}_{year}"
+        counts = worker.reformat(dry_run=True)
+        assert counts["preview"] == 1
+        assert named.exists()
+        assert db.get_file(named) is not None
+        assert len(db.history()) == before
+        assert events[-1]["new_path"].endswith("Smith_2025.pdf")

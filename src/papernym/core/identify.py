@@ -144,6 +144,7 @@ class Identifier:
         self.http_get = http_get or HttpClient(config).get
         self.on_event = on_event or (lambda event: None)
         self.db = db
+        self.read_only = False
         self._warned = set()
 
     def _cached(self, ident: str) -> PaperMatch | None:
@@ -171,11 +172,11 @@ class Identifier:
             return False
 
     def _mark_miss(self, ident: str):
-        if self.db is not None:
+        if self.db is not None and not self.read_only:
             self.db.put_miss(ident, dt.datetime.now(dt.timezone.utc).isoformat())
 
     def _save_match(self, match: PaperMatch) -> PaperMatch:
-        if self.db is not None:
+        if self.db is not None and not self.read_only:
             meta = match.meta
             self.db.put_paper({"paper_id": match.paper_id, "title": meta["title"],
                                "year": meta.get("year"), "year_online": meta.get("year_online"),
