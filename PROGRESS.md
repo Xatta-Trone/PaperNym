@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M0
-- **Next task:** create the `src/papernym/` package skeleton and `tests/`
-- **Last test run:** `.venv\Scripts\python.exe -c "...tomllib assertions..."` — pass
+- **Next task:** editable install and placeholder pytest test
+- **Last test run:** `.venv\Scripts\python.exe -c "...16 module imports..."` — pass
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -25,7 +25,7 @@ Rules:
 - [x] `git init`; `.gitignore` (`.venv`, `sample_pdfs/`, `__pycache__`, `build`, `dist`, `*.egg-info`)
 - [x] Move `paper_renamer.py`, `test_apis.py`, `compare_sources.py`, `compare_pdf_libs.py` into `prototype/` (read-only reference); leave `pdf_metadata.py` alone
 - [x] `pyproject.toml` (name `papernym`, deps `pypdfium2`, `requests`, `watchdog`; extra `gui = ["PySide6"]`; dev extra `pytest`)
-- [ ] Package skeleton `src/papernym/` per SPEC section 3; `tests/`
+- [x] Package skeleton `src/papernym/` per SPEC section 3; `tests/`
 - [ ] Editable install into `.venv`; `pytest` passes with one placeholder test
 
 ### M1 Core, part 1
@@ -153,3 +153,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -c "...tomllib assertions..."` — pass; parsed name, runtime dependencies, and extras.
 - Decisions: Use setuptools, one of the two build backends allowed by SPEC section 2. Read the version from `papernym.__version__` as the single source.
 - Next: Create the package skeleton and tests directory.
+
+### 2026-11-10  M0  Create package skeleton
+- Done: Added the `papernym`, `core`, `core.sources`, `gui`, and test package layout specified in SPEC section 3.
+- Files: `src/papernym/`, `tests/__init__.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -c "...16 module imports..."` — pass; all skeleton modules import from `src/`.
+- Decisions: Keep future modules as docstring stubs so M1–M5 implement and test each feature in milestone order. Set initial version in `papernym.__version__`.
+- Next: Install the package in editable mode and add the first pytest smoke test.
