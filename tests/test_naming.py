@@ -83,3 +83,43 @@ def test_custom_template_keeps_fixed_text_and_warns_on_collisions():
 def test_custom_template_rejections(template, reason):
     with pytest.raises(naming.TemplateError, match=reason):
         naming.validate_template(template)
+
+
+def test_budget_cuts_title_on_whole_words(tmp_path):
+    meta = sample_meta()
+    meta["title"] = " ".join(["Research"] * 80)
+    name = naming.build_name(meta, "year_author_title", tmp_path, windows=False)
+    assert len(name.encode("utf-8")) <= 255
+    assert name.endswith("Research.pdf")
+    assert "Research_Research" in name
+    limited = naming.build_name(meta, "year_author_title", tmp_path, title_limit=17, windows=False)
+    assert limited == "2025_Bermudez_Research_Research.pdf"
+
+
+def test_windows_full_path_and_suffix_budget(tmp_path):
+    folder = tmp_path / ("deep" * 25)
+    meta = sample_meta()
+    meta["title"] = " ".join(["Analysis"] * 40)
+    name = naming.build_name(meta, "year_author_title", folder, suffix="_CHECK", windows=True)
+    assert len(str(folder.resolve())) + 1 + len(name) <= 259
+    assert len(name) <= 255
+    assert name.endswith("_CHECK.pdf")
+    with pytest.raises(naming.NameBudgetError):
+        naming.build_name(meta, "year_author_title", tmp_path / ("x" * 300), windows=True)
+
+
+def test_non_latin_linux_bytes_and_two_title_tokens(tmp_path):
+    meta = sample_meta()
+    meta["title"] = "東京 " * 70
+    name = naming.build_name(meta, "{title}_{shorttitle}", tmp_path, windows=False)
+    assert len(name.encode("utf-8")) <= 255
+    assert "東京" in name
+    assert not name.endswith("_東京東.pdf")
+
+
+def test_long_non_title_fields_have_final_guard(tmp_path):
+    meta = sample_meta()
+    meta["authors"] = ["A" * 300]
+    name = naming.build_name(meta, "author_year", tmp_path, windows=False)
+    assert len(name.encode("utf-8")) <= 255
+    assert name.endswith(".pdf")

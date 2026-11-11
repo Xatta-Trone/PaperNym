@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M1
-- **Next task:** `core/naming.py` length budget and whole-word cut
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py tests/test_config.py` — 48 passed
+- **Next task:** `core/naming.py` collision handling
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 37 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -36,7 +36,7 @@ Rules:
 - [x] `core/naming.py`: tokens, field cleaning, non-Latin fallback
 - [x] `core/naming.py`: the 15 fixed presets (SPEC section 7)
 - [x] `core/naming.py`: custom templates with fixed text, and every validation rule
-- [ ] `core/naming.py`: length budget (255 name, Windows 259 path), whole-word cut
+- [x] `core/naming.py`: length budget (255 name, Windows 259 path), whole-word cut
 - [ ] `core/naming.py`: collision rules (`_dupN` for the same paper, title extension for different papers)
 
 ### M2 Core, part 2
@@ -216,3 +216,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py tests/test_config.py` — 48 passed.
 - Decisions: Return a warning for valid templates without title tokens, while invalid templates raise `TemplateError` with a reason.
 - Next: Enforce name and path budgets with whole-word title cuts.
+
+### 2026-11-10  M1  Enforce filename budgets
+- Done: Added whole-word title cutting, the 255-name limit, the Windows 259-character full-path limit, a six-character duplicate reserve, suffix accounting, and Linux UTF-8 byte accounting.
+- Files: `src/papernym/core/naming.py`, `tests/test_naming.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 37 passed, including deep-path and non-Latin cases.
+- Decisions: Raise `NameBudgetError` when a folder path itself leaves no room for a PDF name; hard-cut overlong non-title fields as the specification requires.
+- Next: Distinguish same-paper and different-paper name collisions.

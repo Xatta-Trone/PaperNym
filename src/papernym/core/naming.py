@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 import unicodedata
+import os
+from pathlib import Path
 
 
 TOKENS = frozenset({"year", "author", "authors", "title", "shorttitle", "journal"})
@@ -31,6 +33,10 @@ PRESETS = {
 
 class TemplateError(ValueError):
     """A custom name template violates a naming rule."""
+
+
+class NameBudgetError(ValueError):
+    """The containing folder leaves no room for a valid PDF name."""
 
 
 def validate_template(template: str) -> list[str]:
@@ -130,3 +136,72 @@ def render_custom(template: str, meta: dict, word_sep: str = "_",
     validate_template(template)
     values = token_values(meta, year_mode, word_sep)
     return _render_stem(template, values) + ".pdf"
+
+
+def name_budget(folder: str | Path, windows: bool | None = None) -> int:
+    """Maximum filename size, in characters on Windows and bytes elsewhere."""
+    windows = os.name == "nt" if windows is None else windows
+    return min(255, 259 - len(os.path.abspath(os.fspath(folder))) - 1) if windows else 255
+
+
+def _measure(value: str, windows: bool) -> int:
+    return len(value) if windows else len(value.encode("utf-8"))
+
+
+def cut_words(words: list[str], room: int, separator: str, windows: bool) -> str:
+    """Take complete title words that fit the available room."""
+    chosen = []
+    for word in words:
+        candidate = separator.join((*chosen, word))
+        if _measure(candidate, windows) > room:
+            break
+        chosen.append(word)
+    return separator.join(chosen)
+
+
+def _hard_cut(value: str, room: int, windows: bool) -> str:
+    out = ""
+    for char in value:
+        if _measure(out + char, windows) > room:
+            break
+        out += char
+    return out
+
+
+def build_name(meta: dict, template: str, folder: str | Path, *, word_sep: str = "_",
+               year_mode: str = "citation", title_limit: int = 0, suffix: str = "",
+               windows: bool | None = None, reserve: int = 6) -> str:
+    """Render a preset name or custom template within the platform budget."""
+    windows = os.name == "nt" if windows is None else windows
+    citekey = template == "citekey"
+    if template in PRESETS:
+        template, word_sep = PRESETS[template]
+    else:
+        validate_template(template)
+    if title_limit < 0:
+        raise ValueError("title_limit must be nonnegative")
+    limit = name_budget(folder, windows)
+    if limit < _measure(suffix + ".pdf", windows) + 1:
+        raise NameBudgetError("folder path leaves no room for a PDF name")
+    values = token_values(meta, year_mode, word_sep)
+    title_words = clean_field(meta.get("title", ""), " ").split()
+    if citekey:
+        title_words = [word.capitalize() for word in title_words]
+        values["author"] = values["author"].capitalize()
+    title_tokens = _TOKEN.findall(template)
+    slots = sum(token in ("title", "shorttitle") for token in title_tokens)
+    placeholder = dict(values, title="x", shorttitle="x")
+    fixed_length = _measure(_render_stem(template, placeholder), windows) - slots
+    room = max(0, limit - _measure(suffix + ".pdf", windows) - reserve - fixed_length)
+    if title_limit:
+        room = min(room, title_limit)
+    per_slot = room // slots if slots else 0
+    values["title"] = cut_words(title_words, per_slot, word_sep, windows)
+    values["shorttitle"] = cut_words(title_words[:6], per_slot, word_sep, windows)
+    stem = _render_stem(template, values)
+    stem_room = limit - _measure(suffix + ".pdf", windows)
+    if _measure(stem, windows) > stem_room:
+        stem = _hard_cut(stem, stem_room, windows).rstrip(" ._-")
+    if not stem:
+        raise NameBudgetError("template produced an empty PDF name")
+    return stem + suffix + ".pdf"
