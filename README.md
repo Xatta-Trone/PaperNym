@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <sub>Pronounced <b>PAY-per-nim</b> /ˈpeɪ.pər.nɪm/: “paper” + “-nym”, as in <i>synonym</i>.</sub>
+</p>
+
+<p align="center">
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0B5563">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-FFB020">
