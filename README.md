@@ -136,26 +136,54 @@ pipx install "papernym[gui]"      # upgrade with: pipx upgrade papernym
 ```
 
 On Linux, the tray app adds itself to your app menu the first time it runs (or run
-`papernym menu-entry`).
+`papernym menu-entry`). On macOS, see the steps below.
 
-### macOS (with pip)
+### macOS
 
-There is no Mac installer yet; install from PyPI as above (`brew install pipx` first if you
-use pipx), then start the tray app once from Terminal:
+There is no Mac installer yet. PaperNym installs from PyPI with Python, in about five
+minutes, and then opens like any other app.
 
-```bash
-papernym-gui
-```
+1. **Get Python 3.10 or newer.** Open **Terminal** (Applications → Utilities) and run
+   `python3 --version`. If it prints 3.10 or higher, go to step 2. Otherwise install the
+   latest Python from [python.org](https://www.python.org/downloads/macos/) (the macOS
+   installer); the `python3` that comes with Apple's developer tools is too old.
 
-If the command is not found, run `python3 -m papernym.gui` instead. PaperNym then:
+2. **Install PaperNym:**
 
-- moves to the background and shows its icon in the menu bar, so you can close Terminal
-  (add `--foreground` to keep it in the terminal);
-- adds **PaperNym** to `~/Applications`, so next time you can open it from Spotlight,
-  Launchpad or the Dock (or run `papernym menu-entry` to add it without starting the app);
-- with **Start at login** turned on in its settings, starts when you log in.
+   ```bash
+   python3 -m pip install "papernym[gui]"
+   ```
 
-Windows and Ubuntu are tested on real machines. macOS runs the automated tests, but the tray
+   If this stops with **externally-managed-environment** (Python from Homebrew), use pipx
+   instead: `brew install pipx`, `pipx ensurepath`, open a new Terminal window, then
+   `pipx install "papernym[gui]"`.
+
+3. **Start it once from Terminal:**
+
+   ```bash
+   papernym-gui
+   ```
+
+   (If the command is not found, run `python3 -m papernym.gui`.) PaperNym moves to the
+   background, so you can close Terminal, and its icon appears in the **menu bar** at the top
+   right of the screen. The setup wizard asks which folders to watch.
+
+4. **From now on, open it like any app.** PaperNym adds itself to `~/Applications`, so it
+   opens from **Spotlight** (Cmd+Space, type *PaperNym*), Launchpad or the Dock. To start it
+   automatically, turn on **Start at login** in its settings.
+
+Good to know:
+
+- macOS may ask whether **Python** may access your Downloads (or Documents, Desktop) folder.
+  Click **Allow**: PaperNym runs on Python, so the request carries Python's name. If you
+  clicked *Don't Allow*, turn it on again under **System Settings → Privacy & Security →
+  Files and Folders**.
+- While it runs, the Dock and the menu at the top may show **Python** instead of PaperNym.
+- Upgrade with `python3 -m pip install -U "papernym[gui]"` (or `pipx upgrade papernym`),
+  then quit PaperNym from its menu-bar icon and open it again.
+- Settings are in `~/.config/PaperNym`.
+
+Windows and Ubuntu are tested on real machines. On macOS the automated tests pass, but the
 app has not yet been tried on a real Mac: please
 [open an issue](https://github.com/Xatta-Trone/papernym/issues) if something does not work.
 
