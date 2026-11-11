@@ -1,0 +1,120 @@
+name: PyPI release
+
+# Builds the Python package (sdist and wheel), checks it, installs the wheel in a clean
+# environment, then publishes it with PyPI trusted publishing (no API token or password).
+#
+# Run it by hand from the Actions tab ("Run workflow"):
+#   - target "testpypi" (default) uploads to https://test.pypi.org/project/papernym/
+#   - target "pypi" uploads to https://pypi.org/project/papernym/
+#   - target "build-only" stops after the checks
+# A version can be uploaded to each index only once; bump src/papernym/__init__.py first.
+# One-time setup on TestPyPI / PyPI and GitHub: see docs/BUILDING.md, "Publishing to PyPI".
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        required: true
+        default: testpypi
+        type: choice
+        options: [testpypi, pypi, build-only]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install the build tools
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build the sdist and the wheel
+        run: python -m build
+
+      - name: Check the package metadata and README
+        run: python -m twine check --strict dist/*
+
+      - name: Check what the sdist contains
+        run: |
+          tar -tzf dist/papernym-*.tar.gz > sdist.txt
+          if grep -E "/(prototype|sample_pdfs|packaging|scripts|assets|docs|\.github)/" sdist.txt; then
+            echo "::error::the sdist contains files that are not part of the package"
+            exit 1
+          fi
+          echo "sdist files: $(wc -l < sdist.txt)"
+
+      - name: Install the wheel in a clean environment and run the CLI
+        env:
+          PAPERNYM_KEYRING: "off"
+        run: |
+          python -m venv /tmp/try
+          /tmp/try/bin/python -m pip install dist/papernym-*.whl
+          export PAPERNYM_HOME="$(mktemp -d)"
+          /tmp/try/bin/papernym --version
+          /tmp/try/bin/papernym show
+          /tmp/try/bin/papernym formats > /dev/null
+          version=$(/tmp/try/bin/python -c "import papernym; print(papernym.__version__)")
+          ls dist | grep -q "papernym-$version" || { echo "::error::dist does not match version $version"; exit 1; }
+          echo "Built papernym $version" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the built files
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-testpypi:
+    if: inputs.target == 'testpypi'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/papernym/
+    permissions:
+      id-token: write   # trusted publishing
+    steps:
+      - name: Get the built files
+        uses: actions/download-artifact@v8
+        with:
+          name: python-dist
+          path: dist/
+
+      - name: Upload to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    if: inputs.target == 'pypi'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/papernym/
+    permissions:
+      id-token: write   # trusted publishing
+    steps:
+      - name: Get the built files
+        uses: actions/download-artifact@v8
+        with:
+          name: python-dist
+          path: dist/
+
+      - name: Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

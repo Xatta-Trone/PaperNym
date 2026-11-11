@@ -104,8 +104,8 @@ Rules:
 - [x] README (install, quick start, commands, privacy note), LICENSE (MIT)
 - [ ] CHANGELOG
 - [ ] README: replace "from source" install with `pip install papernym` / `pipx install papernym` once published
-- [ ] Build sdist and wheel; `twine check`
-- [ ] Upload to TestPyPI; install from it in a fresh venv
+- [x] Build sdist and wheel; `twine check` (`twine check --strict` passes; sdist holds only `src/`, `tests/` and project files)
+- [ ] Upload to TestPyPI; install from it in a fresh venv (workflow `pypi-release.yml` ready; waiting for the owner's TestPyPI trusted publisher and the `testpypi` environment)
 - [ ] GitHub Actions: tests on `windows-latest` and `ubuntu-latest`; release workflow
 
 ### M8 Linux (priority 3)
@@ -528,3 +528,11 @@ Newest entry at the bottom. Use this shape:
 - Fix: a `wizard` fixture in `tests/test_gui.py` builds the wizards and deletes them (`shiboken6.delete`) at the end of each test. In the app the wizard always has the main window as parent, so the app itself is not affected.
 - Tests: full suite exit code 0 in PowerShell, three runs (243 passed each); each wizard test alone also exits 0.
 - Version 0.1.2 (new tag; `v0.1.0` and `v0.1.1` are left as they are, neither produced a release).
+
+### 2026-11-11  M7  First Windows release; PyPI workflow
+- Done: the `v0.1.2` release run passed every step and published `PaperNym-Setup-0.1.2.exe` (29 MB) and its `.sha256` at https://github.com/Xatta-Trone/papernym/releases/tag/v0.1.2.
+- Done: `.github/workflows/pypi-release.yml`, started by hand with target `testpypi` (default), `pypi` or `build-only`: builds sdist and wheel on Ubuntu, `twine check --strict`, rejects an sdist that contains prototype, sample, packaging, scripts, assets, docs or workflow files, installs the wheel in a clean venv and runs `papernym --version`, `show` and `formats` (temporary home, keyring off), uploads the files as an artifact, then publishes with trusted publishing (`pypa/gh-action-pypi-publish@release/v1`, `id-token: write` only in the publish job, GitHub environments `testpypi` / `pypi`). `README.md` links and the icon are absolute URLs so they work on the PyPI page. `docs/BUILDING.md` gains "Publishing to PyPI" with the owner's one-time setup.
+- Checked locally: `uv build`, `uvx twine check --strict` (both files PASSED), wheel installed in a clean Python 3.11 venv: `papernym --version` 0.1.2, `show`, `formats` work; `papernym.exe` and `papernym-gui.exe` are created. The workflow itself has not run yet.
+- Not checked: whether the name `papernym` is free on TestPyPI and PyPI (the owner's pending-publisher form says so).
+- Next: owner creates the TestPyPI account, pending publisher and `testpypi` environment; then run the workflow with target `testpypi`.
+

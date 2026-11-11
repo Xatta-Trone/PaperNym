@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/papernym-icon-1024.png" alt="PaperNym icon" width="112">
+  <img src="https://raw.githubusercontent.com/Xatta-Trone/papernym/main/assets/papernym-icon-1024.png" alt="PaperNym icon" width="112">
 </p>
 
 <h1 align="center">PaperNym</h1>
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
+  <a href="https://github.com/Xatta-Trone/papernym/blob/main/LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0B5563"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0B5563">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-FFB020">
 </p>
@@ -313,9 +313,9 @@ python -m pytest -q
 papernym-gui --sandbox --show --debug     # run the tray app from source
 ```
 
-- [`docs/SPEC.md`](docs/SPEC.md) is the full specification: behaviour, naming rules, edge cases.
-- [`docs/BUILDING.md`](docs/BUILDING.md) covers building the Windows exe and installer, and releasing.
-- [`docs/PROGRESS.md`](docs/PROGRESS.md) is the work log and milestone checklist.
+- [`docs/SPEC.md`](https://github.com/Xatta-Trone/papernym/blob/main/docs/SPEC.md) is the full specification: behaviour, naming rules, edge cases.
+- [`docs/BUILDING.md`](https://github.com/Xatta-Trone/papernym/blob/main/docs/BUILDING.md) covers building the Windows exe and installer, and releasing.
+- [`docs/PROGRESS.md`](https://github.com/Xatta-Trone/papernym/blob/main/docs/PROGRESS.md) is the work log and milestone checklist.
 
 Bug reports and ideas are welcome in
 [Issues](https://github.com/Xatta-Trone/papernym/issues). For a misnamed paper, include its
@@ -330,7 +330,7 @@ DOI and the output of `papernym compare` on that file, if you can.
 
 ## Licence and credits
 
-PaperNym is released under the [MIT licence](LICENSE) © 2026
+PaperNym is released under the [MIT licence](https://github.com/Xatta-Trone/papernym/blob/main/LICENSE) © 2026
 [Xatta-Trone](https://github.com/Xatta-Trone). The Windows build bundles Qt for Python
 (PySide6, LGPL-3.0), linked dynamically. Licences of all bundled components ship in
 `THIRD_PARTY_LICENSES.txt`.

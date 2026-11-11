@@ -89,3 +89,63 @@ To sign later: `scripts/build_windows.py` still signs both exes and the installe
 `SIGN_PFX` (a `.pfx`) and `SIGN_PASSWORD` are set and `signtool.exe` is available. The release
 workflow does not pass a certificate. SignPath.io (free for open-source projects) and Azure
 Trusted Signing are the low-cost routes.
+
+## Publishing to PyPI
+
+`.github/workflows/pypi-release.yml` builds the Python package (sdist and wheel), runs
+`twine check --strict`, makes sure the sdist holds only `src/`, `tests/` and the project
+files, installs the wheel in a clean environment and runs the CLI, then uploads with
+**trusted publishing**: PyPI trusts this repository's workflow, so there is no API token or
+password to store.
+
+Start it from **Actions → PyPI release → Run workflow** and pick a target:
+
+| Target | Uploads to |
+|---|---|
+| `testpypi` (default) | https://test.pypi.org/project/papernym/ |
+| `pypi` | https://pypi.org/project/papernym/ |
+| `build-only` | nowhere; runs the checks only |
+
+Each index accepts a version only once, so bump `src/papernym/__init__.py` before uploading
+again.
+
+### One-time setup (owner)
+
+TestPyPI and PyPI are separate sites with separate accounts. For each one you use:
+
+1. Create an account and turn on two-factor authentication:
+   https://test.pypi.org/account/register/ (and https://pypi.org/account/register/).
+2. Add a pending trusted publisher under **Account settings → Publishing**
+   (https://test.pypi.org/manage/account/publishing/):
+
+   | Field | Value |
+   |---|---|
+   | PyPI project name | `papernym` |
+   | Owner | `Xatta-Trone` |
+   | Repository name | `papernym` |
+   | Workflow name | `pypi-release.yml` |
+   | Environment name | `testpypi` (on PyPI: `pypi`) |
+
+   The project is created on the first successful upload.
+3. On GitHub, create the environments under **Settings → Environments**: `testpypi`, and
+   later `pypi`. Adding yourself as a required reviewer on `pypi` makes every real upload
+   wait for your approval.
+
+### Try the TestPyPI upload
+
+TestPyPI does not host most of PaperNym's dependencies, so take those from PyPI:
+
+```bash
+python -m venv try
+try\Scripts\activate
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "papernym[gui]"
+papernym --version
+papernym-gui --sandbox --show
+```
+
+### Build and check locally
+
+```bash
+uv build --out-dir dist/pypi
+uvx twine check --strict dist/pypi/*
+```
