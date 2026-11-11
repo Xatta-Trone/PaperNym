@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** fixed regression cases from SPEC section 17
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 21 passed
+- **Next task:** local `pdfread` check on temporary copies of `sample_pdfs/`
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_regression.py` — 8 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -48,7 +48,7 @@ Rules:
 - [x] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
 - [x] `core/identify.py`: outage handling and the offline fallback rules
 - [x] `title_search` privacy switch honoured
-- [ ] Regression table in SPEC section 17 passes
+- [x] Regression table in SPEC section 17 passes
 - [ ] Local check: `pdfread` on a copy of every file in `sample_pdfs/`; log the DOI and title guess found for each
 
 ### M3 Core, part 3
@@ -286,3 +286,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 21 passed.
 - Decisions: Keep the switch in the identification pipeline so every caller inherits the same privacy behavior.
 - Next: Verify the fixed regression cases in SPEC section 17.
+
+### 2026-11-10  M2  Add fixed regression fixtures
+- Done: Added network-free fixtures for the five DOI year/author cases, arXiv Vaswani, the Journal Pre-proof title trap, and the conflicting PDF-author fallback.
+- Files: `tests/test_regression.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_regression.py` — 8 passed.
+- Decisions: Keep the fixture responses in tests so CI passes without live services or copyrighted sample files; the next local check separately reads copies of the real PDFs.
+- Next: Run `pdfread` on temporary copies of all sample PDFs and log each DOI and title guess.
