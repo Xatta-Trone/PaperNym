@@ -51,6 +51,21 @@ def stable_file(path: Path, timeout: float = 120, pause: float = 1.5) -> bool:
     return False
 
 
+def move_no_replace(source: Path, target: Path) -> None:
+    """Move within one folder without replacing a concurrently created target."""
+    if target.exists():
+        raise FileExistsError(target)
+    if os.name == "nt":
+        source.rename(target)  # Windows rename refuses an occupied destination.
+    else:
+        os.link(source, target)  # Atomic exclusive creation on the same filesystem.
+        try:
+            source.unlink()
+        except OSError:
+            target.unlink()
+            raise
+
+
 class Engine:
     def __init__(self, config: dict, db: Database, identifier: Identifier | None = None,
                  on_event: Callable | None = None, read_pdf_fn: Callable = read_pdf,
@@ -137,14 +152,18 @@ class Engine:
         if target.exists():
             raise FileExistsError(target)
         try:
-            path.rename(target)
+            move_no_replace(path, target)
         except OSError as exc:
             self.db.put_file(self._row(path, fp, "pending", match.paper_id, given_name, attempts))
             self._event("busy", path, f"rename failed: {exc}; will retry", source=match.meta["source"])
             return ProcessResult("pending", path, str(exc))
         new_row = self._row(target, fp, match.status, match.paper_id, target.name, attempts)
-        self.db.record_rename(path, new_row, source or match.meta["source"], match.status,
-                              batch or self._batch(), self._stamp())
+        try:
+            self.db.record_rename(path, new_row, source or match.meta["source"], match.status,
+                                  batch or self._batch(), self._stamp())
+        except Exception:
+            move_no_replace(target, path)
+            raise
         kind = "needs_check" if match.status == "check" else "renamed"
         self._event(kind, target, f"{path.name} -> {target.name}", old_path=str(path),
                     new_path=str(target), source=match.meta["source"])
@@ -340,7 +359,7 @@ class Engine:
                 counts["skipped"] += 1
                 self._event("skipped", new, "cannot undo: moved, missing, or old name occupied")
                 continue
-            new.rename(old)
+            move_no_replace(new, old)
             old_file = dict(current)
             old_file.update({"path": str(old), "display_path": str(old),
                              "given_name": old.name if history["source"] == "reformat" else current["given_name"],
@@ -348,7 +367,7 @@ class Engine:
             try:
                 self.db.undo_history_row(history["id"], new, old_file)
             except Exception:
-                old.rename(new)
+                move_no_replace(old, new)
                 raise
             counts["undone"] += 1
             self._event("undo", old, f"{new.name} -> {old.name}", old_path=str(new), new_path=str(old))

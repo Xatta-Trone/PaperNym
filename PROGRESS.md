@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M3
-- **Next task:** section 14 non-UI edge-case audit
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 17 passed
+- **Current milestone:** M3 complete; awaiting owner to start M4
+- **Next task:** M4 CLI settings commands
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 151 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -63,7 +63,7 @@ Rules:
 - [x] `core/watcher.py`: events, queue, start-up scan
 - [x] Watcher: settings reload, folder reconcile (unplugged drive), retry timer, pause
 - [x] Folder rules: overlap, reference-manager warning
-- [ ] Every non-UI row of SPEC section 14 has a passing test
+- [x] Every non-UI row of SPEC section 14 has a passing test
 
 ### M4 Minimal CLI
 - [ ] `cli.py`: settings commands (`add-folder`, `remove-folder`, `exclude`, `set-*`, `formats`, `show`)
@@ -389,3 +389,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_config.py` — 17 passed.
 - Decisions: Return a validated config copy from `add_folder`; leave the caller responsible for saving it and showing any warning.
 - Next: Audit and test every non-UI edge case in SPEC section 14.
+
+### 2026-11-10  M3  Audit edge cases and complete milestone
+- Done: Added cross-module tests for same-DOI different PDFs, `_CHECK` correction, partial downloads, five-attempt limits, scanned-property DOI trust, non-paper PDFs, interrupted scans, naming changes, cache-free previews, and rollback after a database failure. Mapped all 32 SPEC section 14 rows to tests in `tests/EDGE_CASE_MATRIX.md`; GUI focus behavior in row 25 remains an M5 task.
+- Files: `src/papernym/core/engine.py`, `tests/test_edge_cases.py`, `tests/EDGE_CASE_MATRIX.md`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_edge_cases.py` — 10 passed; `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-m3-full-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — 151 passed. `git diff --check` — clean. `git diff --name-only -- prototype pdf_metadata.py` — empty; `git ls-files sample_pdfs` — empty.
+- Decisions: Use an exclusive, same-folder move on Linux and the Windows no-replace rename path; restore the original file path if the database transaction fails after a physical rename.
+- Next: Await the owner's instruction before M4 CLI work.
