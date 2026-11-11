@@ -327,17 +327,6 @@ def cmd_set_format(ctx: Context) -> int:
     return 0
 
 
-def cmd_set_title_length(ctx: Context) -> int:
-    if ctx.args.length < 0:
-        raise CliError("title length must be 0 or more")
-    config = ctx.settings()
-    config["title_limit"] = ctx.args.length
-    ctx.save(config)
-    shown = "as long as fits" if ctx.args.length == 0 else f"{ctx.args.length} characters"
-    ctx.out.line(f"title length: {shown}", "ok")
-    return 0
-
-
 def cmd_set_year(ctx: Context) -> int:
     config = ctx.settings()
     config["year"] = ctx.args.mode
@@ -382,8 +371,6 @@ def cmd_show(ctx: Context) -> int:
         out.line(f"Format:       {name}  e.g. {render_preset(name, EXAMPLE)}")
     else:
         out.line(f"Format:       custom {config['format']}  (word separator {config['word_sep']!r})")
-    out.line("Title length: " + ("as long as fits" if not config["title_limit"]
-                                 else f"{config['title_limit']} characters"))
     out.line(f"Year:         {config['year']}")
     out.line(f"Title search: {'on' if config['title_search'] else 'off'}")
     out.line(f"Email:        {config['email'] or 'not set'}")
@@ -705,8 +692,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--custom", metavar="TEMPLATE", help="custom template, e.g. \"{year}_{author}_{title}\"")
     p.add_argument("--word-sep", choices=["_", " ", "space", "-", "none"],
                    help="separator between words of a field (custom only)")
-    p = command("set-title-length", cmd_set_title_length, "Maximum title length (0 = as long as fits)")
-    p.add_argument("length", type=int)
     p = command("set-year", cmd_set_year, "Year mode")
     p.add_argument("mode", choices=["citation", "online"])
     p = command("set-title-search", cmd_set_title_search, "Allow sending titles to search services")

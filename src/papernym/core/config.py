@@ -16,12 +16,14 @@ from .naming import PRESETS, TemplateError, validate_template
 
 log = logging.getLogger("papernym")
 
+# Settings that no longer exist; old config.json files may still have them (dropped on load).
+RETIRED = {"title_limit"}  # titles are always as long as the file-name budget allows
+
 DEFAULTS = {
     "folders": [],
     "exclude": ["*draft*", "*_v[0-9]*", "Manuscripts/"],
     "format": "{year}_{author}_{title}",
     "word_sep": "_",
-    "title_limit": 0,
     "year": "citation",
     "title_search": True,
     "openalex_key": "",
@@ -70,6 +72,7 @@ def validate_config(config: dict) -> dict:
     """Return a complete validated copy; reject invalid settings explicitly."""
     if not isinstance(config, dict):
         raise ConfigError("config must be a JSON object")
+    config = {key: value for key, value in config.items() if key not in RETIRED}
     unknown = set(config) - set(DEFAULTS)
     if unknown:
         raise ConfigError(f"unknown config keys: {', '.join(sorted(unknown))}")
@@ -89,8 +92,6 @@ def validate_config(config: dict) -> dict:
     _validate_template(result["format"])
     if result["word_sep"] not in ("_", " ", "-", ""):
         raise ConfigError("word_sep must be _, space, -, or empty")
-    if type(result["title_limit"]) is not int or result["title_limit"] < 0:
-        raise ConfigError("title_limit must be a nonnegative integer")
     if result["year"] not in ("citation", "online"):
         raise ConfigError("year must be citation or online")
     for key in ("title_search", "start_at_login", "notify_on_rename", "paused", "update_check"):

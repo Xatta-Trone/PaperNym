@@ -73,7 +73,7 @@ def test_no_arguments_prints_help(home, capsys):
     assert "add-folder" in out and "test-apis" in out
 
 
-@pytest.mark.parametrize("argv", [["bogus"], ["set-year", "later"], ["set-title-length", "x"],
+@pytest.mark.parametrize("argv", [["bogus"], ["set-year", "later"], 
                                   ["fix", "a.pdf"], ["undo", "--last", "0"]])
 def test_usage_errors_exit_2(home, capsys, argv):
     code, _, _ = run(capsys, *argv)
@@ -179,18 +179,17 @@ def test_set_format_preset_and_custom(home, capsys):
 
 
 def test_other_settings_and_show(home, papers, capsys):
-    assert run(capsys, "set-title-length", "40")[0] == 0
-    assert run(capsys, "set-title-length", "-1")[0] == 1
     assert run(capsys, "set-year", "online")[0] == 0
     assert run(capsys, "set-title-search", "off")[0] == 0
     run(capsys, "add-folder", str(papers))
     config = load_config(home)
-    assert (config["title_limit"], config["year"], config["title_search"]) == (40, "online", False)
+    assert (config["year"], config["title_search"]) == ("online", False)
+    assert "title_limit" not in config
     code, out, _ = run(capsys, "show")
     assert code == 0
     assert f"Settings folder: {home}" in out
     assert str(papers.resolve()) in out
-    assert "Title search: off" in out and "40 characters" in out
+    assert "Title search: off" in out
 
 
 def test_invalid_config_reports_failure(home, capsys):

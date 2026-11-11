@@ -138,7 +138,6 @@ class Engine:
                            paper_id=match.paper_id, fingerprint=fp, known=known, current=path,
                            word_sep=self.config.get("word_sep", "_"),
                            year_mode=self.config.get("year", "citation"),
-                           title_limit=self.config.get("title_limit", 0),
                            suffix="_CHECK" if match.status == "check" else "")
 
     def _rename(self, path: Path, fp: str, match: PaperMatch, attempts: int,

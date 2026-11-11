@@ -531,3 +531,29 @@ def test_sources_key_fields_are_hidden_and_say_where_keys_live(qapp, make_ctl):
     sources = ctl.window.sources
     assert sources.openalex.echoMode() == QLineEdit.PasswordEchoOnEdit
     assert "not in the settings file" in sources.key_store.text()
+
+
+def test_double_click_a_folder_row_opens_it(qapp, make_ctl, tmp_path, monkeypatch):
+    from papernym.gui import tabs
+
+    opened = []
+    monkeypatch.setattr(tabs, "open_path", opened.append)
+    folder = tmp_path / "papers"
+    folder.mkdir()
+    ctl = make_ctl(folder)
+    table = ctl.window.folders.table
+    assert wait(qapp, lambda: table.rowCount() == 1)
+    table.cellDoubleClicked.emit(0, 0)
+    table.cellDoubleClicked.emit(0, 2)
+    table.cellDoubleClicked.emit(0, 1)  # the Subfolders checkbox column does not open it
+    assert opened == [str(folder.resolve())] * 2
+
+
+def test_naming_tab_has_no_title_length(qapp, make_ctl):
+    from PySide6.QtWidgets import QLabel, QSpinBox
+
+    ctl = make_ctl()
+    naming = ctl.window.naming
+    assert not naming.findChildren(QSpinBox)
+    assert not any("length" in label.text().lower() for label in naming.findChildren(QLabel))
+

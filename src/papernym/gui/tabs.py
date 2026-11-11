@@ -13,7 +13,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QFormLayout,
                                QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QInputDialog,
                                QLabel, QLineEdit, QListWidget, QMessageBox, QProgressBar,
-                               QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QTreeWidget,
+                               QPushButton, QTableWidget, QTableWidgetItem, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import __version__
@@ -357,6 +357,8 @@ class FoldersTab(QWidget):
         self.table = _table(["Folder", "Subfolders", "State"], "Watched folders")
         self.table.setColumnWidth(0, 520)
         self.table.itemChanged.connect(self._toggled)
+        self.table.cellDoubleClicked.connect(self._open_row)
+        self.table.setToolTip("Double-click a folder to open it")
         inner.addWidget(self.table)
         row = QHBoxLayout()
         for text, slot in (("&Add folder...", self._add), ("&Remove", self._remove),
@@ -447,6 +449,18 @@ class FoldersTab(QWidget):
             config["folders"] = [folder for folder in config["folders"] if folder["path"] != path]
             self.ctl.save_settings(config)
 
+    def _open_row(self, row: int, column: int):
+        if column == 1:  # the Subfolders checkbox: a double-click there just toggles it
+            return
+        item = self.table.item(row, 0)
+        if item is None:
+            return
+        path = item.text()
+        if os.path.isdir(path):
+            open_path(path)
+        else:
+            self.ctl.status(f"{path} is not reachable right now.")
+
     def _reveal(self):
         path = self._selected_path()
         if path:
@@ -503,11 +517,6 @@ class NamingTab(QWidget):
         for label, value in SEPARATORS:
             self.separator.addItem(label, value)
         form.addRow("&Word separator", self.separator)
-        self.title_limit = QSpinBox()
-        self.title_limit.setRange(0, 250)
-        self.title_limit.setSpecialValueText("As long as fits")
-        self.title_limit.setSuffix(" characters")
-        form.addRow("Title &length", self.title_limit)
         self.year = QComboBox()
         self.year.addItem("Citation year (journal volume)", "citation")
         self.year.addItem("First-online year", "online")
@@ -533,13 +542,13 @@ class NamingTab(QWidget):
         layout.addLayout(row)
         layout.addWidget(QLabel("Saving never renames existing files by itself; you are asked first."))
         for signal in (self.preset.currentIndexChanged, self.template.textChanged,
-                       self.separator.currentIndexChanged, self.title_limit.valueChanged,
+                       self.separator.currentIndexChanged,
                        self.year.currentIndexChanged):
             signal.connect(self._changed)
         ctl.config_changed.connect(self.show_config)
 
     def show_config(self, config: dict):
-        widgets = (self.preset, self.template, self.separator, self.title_limit, self.year)
+        widgets = (self.preset, self.template, self.separator, self.year)
         for widget in widgets:
             widget.blockSignals(True)
         fmt = config["format"]
@@ -550,7 +559,6 @@ class NamingTab(QWidget):
         self.template.setText(PRESETS[preset][0] if preset else fmt)
         self.separator.setCurrentIndex(max(0, self.separator.findData(
             PRESETS[preset][1] if preset else config["word_sep"])))
-        self.title_limit.setValue(config["title_limit"])
         self.year.setCurrentIndex(self.year.findData(config["year"]))
         for widget in widgets:
             widget.blockSignals(False)
@@ -576,8 +584,8 @@ class NamingTab(QWidget):
         try:
             warnings = [] if not custom else validate_template(self.template.text())
             lines = [build_name(paper, preset or self.template.text(), ".",
-                                word_sep=self.separator.currentData(), year_mode=self.year.currentData(),
-                                title_limit=self.title_limit.value()) for paper in SAMPLE_PAPERS]
+                                word_sep=self.separator.currentData(), year_mode=self.year.currentData())
+                     for paper in SAMPLE_PAPERS]
         except (TemplateError, ValueError) as exc:
             self.message.setText(f"Error: {exc}. This template cannot be saved.")
             self.preview.setText("")
@@ -596,17 +604,17 @@ class NamingTab(QWidget):
                      if template == fmt and sep == config["word_sep"] and name != "citekey"), None)
         fmt = same or fmt
         sep = PRESETS[fmt][1] if fmt in PRESETS else config["word_sep"]
-        return (fmt, sep, config["title_limit"], config["year"])
+        return (fmt, sep, config["year"])
 
     def _pending(self) -> tuple:
         preset = self.preset.currentData()
         fmt = preset or self.template.text()
         sep = PRESETS[preset][1] if preset else self.separator.currentData()
-        return (fmt, sep, self.title_limit.value(), self.year.currentData())
+        return (fmt, sep, self.year.currentData())
 
     def _save(self):
         config = copy.deepcopy(self.ctl.config)
-        config["format"], config["word_sep"], config["title_limit"], config["year"] = self._pending()
+        config["format"], config["word_sep"], config["year"] = self._pending()
         try:
             validate_config(config)
         except ConfigError as exc:

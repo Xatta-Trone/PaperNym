@@ -475,3 +475,8 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 233 passed (18 new). Offscreen screenshots of About and Sources checked in light and dark.
 - Note: the repository has no git remote yet; the update check answers that no release has been published until `Xatta-Trone/papernym` has one.
 
+### 2026-11-11  M5  Owner request: open folders by double-click, no title length
+- Done: Folders tab: double-clicking a folder row opens it in Explorer (not on the Subfolders checkbox column; an unreachable folder gets a status message). Title length removed everywhere: the Naming tab control, the CLI `set-title-length` command and the `show` line, and the `title_limit` setting. Titles are always as long as the file-name budget allows. Old `config.json` files with `title_limit` load normally and the key is dropped on the next save.
+- Files: `src/papernym/core/{config,engine}.py`, `src/papernym/cli.py`, `src/papernym/gui/tabs.py`, `tests/{test_cli,test_config,test_gui}.py`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 233 passed (3 new; 3 title-length cases removed with the setting).
+

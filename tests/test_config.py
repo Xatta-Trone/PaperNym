@@ -60,7 +60,7 @@ def test_keys_stay_in_config_when_the_store_is_off(tmp_path, monkeypatch, memory
 
 
 @pytest.mark.parametrize("change", [
-    {"title_limit": -1}, {"title_limit": True}, {"year": "maybe"},
+    {"year": "maybe"},
     {"word_sep": "/"}, {"paused": "no"}, {"folders": [{"path": "x"}]},
     {"exclude": [1]}, {"format": "{bogus}"}, {"format": "plain"},
     {"format": "{year}/bad"}, {"format": "{year}" + "x" * 61},
@@ -127,3 +127,12 @@ def test_load_without_environment_keys(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENALEX_API_KEY", "env-key")
     assert config.load_config(tmp_path)["openalex_key"] == "env-key"
     assert config.load_config(tmp_path, apply_env=False)["openalex_key"] == ""
+
+
+def test_retired_title_limit_is_dropped(tmp_path):
+    (tmp_path / "config.json").write_text(json.dumps({"title_limit": 40, "year": "online"}))
+    loaded = config.load_config(tmp_path, apply_env=False)
+    assert "title_limit" not in loaded and loaded["year"] == "online"
+    config.save_config(loaded, tmp_path)
+    assert "title_limit" not in json.loads((tmp_path / "config.json").read_text())
+

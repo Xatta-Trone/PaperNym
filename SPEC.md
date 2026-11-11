@@ -115,7 +115,6 @@ Files: `config.json`, `papers.db`, `lock`, `logs/papernym.log` (rotating, 5 x 1 
   "exclude": ["*draft*", "*_v[0-9]*", "Manuscripts/"],
   "format": "{year}_{author}_{title}",
   "word_sep": "_",
-  "title_limit": 0,
   "year": "citation",
   "title_search": true,
   "openalex_key": "",
@@ -133,7 +132,7 @@ Files: `config.json`, `papers.db`, `lock`, `logs/papernym.log` (rotating, 5 x 1 
 | `folders` | Watched folders. `recursive` includes subfolders |
 | `exclude` | Glob patterns (file names) and folder names ending in `/`. Matching files are never read or renamed |
 | `format`, `word_sep` | Name template and the separator used between words inside a field (section 7). `format` may also be a fixed preset name such as `citekey`; a preset then sets its own separator |
-| `title_limit` | Max title characters; `0` = as long as the file-name budget allows |
+| (retired) `title_limit` | Removed: titles are always as long as the file-name budget allows. An old `config.json` that still has it loads normally; the key is dropped |
 | `year` | `citation` (journal volume year, default) or `online` (first-online year) |
 | `title_search` | If `false`, titles are never sent to any service; only DOI and arXiv lookups run |
 | `email` | Sent to Crossref as `mailto` for its polite pool |
@@ -472,8 +471,8 @@ none).
     on Windows   = min(255, 259 - len(absolute folder path) - 1)    (full-path limit)
     title room   = name limit - len(".pdf") - len(suffix) - 6 - len(everything else in the name)
 
-The 6 is reserved for a possible `_dupNN` ending. `suffix` is `_CHECK` when present. If
-`title_limit` > 0 the title room is also capped by it. If the template has both title
+The 6 is reserved for a possible `_dupNN` ending. `suffix` is `_CHECK` when present. The
+title always gets all of this room (there is no user title-length setting). If the template has both title
 tokens, split the room between them. Cut at a whole word. Final guard: hard-truncate the
 stem if a very long author or journal still overflows. Count bytes, not characters, on
 Linux when the name contains non-ASCII text.
@@ -550,12 +549,12 @@ Hand-renamed files are never renamed automatically, never retried, and skipped b
 |---|---|
 | **Scan** | Process every PDF in the watched folders (retry pass). Then prune `files` rows whose file is gone, but only under folders that are currently reachable. Emits progress and a final count |
 | **Dry run** | Scan or reformat without renaming or writing to the database. Shows `old -> new`. Must reserve previewed names so two files are not shown the same target |
-| **Reformat** | Apply the current template, year mode and title length to files already named by the tool. Uses saved paper records; no web calls, except a one-time lookup for records that lack `year_online`. Skips hand-renamed files unless `include_manual` |
+| **Reformat** | Apply the current template and year mode to files already named by the tool. Uses saved paper records; no web calls, except a one-time lookup for records that lack `year_online`. Skips hand-renamed files unless `include_manual` |
 | **Undo** | Default: revert every rename in the most recent batch. Option: revert the last N renames. A rename is undone only if the new path exists and the old path is free. After undoing a first-time rename the file counts as hand-named (left alone). After undoing a reformat, `given_name` is set back so reformat can run again |
 | **Manual fix** | For a `check` or `unknown` file, the user supplies a DOI or edits title/author/year. A DOI is looked up and verified as usual; edited fields are stored with source `manual`. Then rename |
 | **Refresh** | Re-look-up one file's metadata on request (for an in-press paper whose year has since changed) |
 
-Changing the template, year mode or title length never renames existing files by itself.
+Changing the template or year mode never renames existing files by itself.
 The user runs Reformat (the UI offers it with a preview).
 
 ---
@@ -597,7 +596,6 @@ Installed command: `papernym`. Running with no arguments prints help.
 | `formats` | List the fixed presets with an example each |
 | `set-format PRESET` | Choose a fixed preset |
 | `set-format --custom "TEMPLATE" [--word-sep _| |-|none]` | Use a custom template (tokens plus your own text); validated as in section 7 |
-| `set-title-length N` | `0` = as long as fits |
 | `set-year citation|online` | Year mode |
 | `set-title-search on|off` | Privacy switch |
 | `show` | Print settings, folders, settings-folder path |
@@ -667,8 +665,8 @@ Left-click (double-click on Windows) opens the main window.
 |---|---|
 | **Activity** | Live list, newest first: time, old name, new name, source, status. Row actions (buttons enabled once a row is selected, right-click menu, double-click or Enter opens): Open file, Show in folder, Undo, Refresh metadata. Search box and status filter; 200 rows per page with First/Previous/Next/Last, so thousands of files stay responsive (the newest 20,000 rows are kept; older ones stay in History and the CSV export). "Scan now" button with a progress bar |
 | **Needs attention** | Files with status `check`, `unknown`, `pending`, `unreadable`, with the same search box, status filter and paging as Activity. For each: the reason, and actions: Enter DOI, Edit details (title, author, year), Retry now, Ignore (never ask again). Ignore records the file as hand-named (status `ok`, no paper), the same as an unticked file in a preview |
-| **Folders** | Watched folders with a subfolders toggle and a reachable/unreachable indicator; Add, Remove. Exclude patterns list |
-| **Naming** | Preset dropdown listing the fixed presets plus **Custom**. Choosing a preset shows its template read-only. Choosing Custom reveals an editable template field with clickable token buttons, where the user can also type fixed text, and a word-separator choice. Below: title length; year mode. A **live preview** on three sample papers updates as the user types. Invalid templates show the error inline and cannot be saved |
+| **Folders** | Watched folders with a subfolders toggle and a reachable/unreachable indicator; Add, Remove. Exclude patterns list . Double-click a folder row to open it in Explorer (the file manager on Linux) |
+| **Naming** | Preset dropdown listing the fixed presets plus **Custom**. Choosing a preset shows its template read-only. Choosing Custom reveals an editable template field with clickable token buttons, where the user can also type fixed text, and a word-separator choice. Below: year mode (titles are always as long as fits). A **live preview** on three sample papers updates as the user types. Invalid templates show the error inline and cannot be saved |
 | **Sources** | OpenAlex key field with a "Get a free key" link and a **Test** button; optional Semantic Scholar key; email; "Search by title" switch with a one-line privacy explanation; "Test all sources" button showing PASS/FAIL per service |
 | **History** | All renames grouped by batch; Undo per row or per batch; export to CSV |
 | **General** | Start at login; show a notification on rename; pause; theme (System, Light, Dark); Save diagnostics (a copy of the log with keys, email addresses and the settings path masked). The settings folder path, Open settings folder and Open log appear only with `--debug` |
