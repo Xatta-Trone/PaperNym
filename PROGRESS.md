@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** watcher settings reload, reconcile, retries, and pause
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_watcher.py` — 1 passed
+- **Next task:** folder overlap and reference-manager warning rules
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_watcher.py` — 5 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -61,7 +61,7 @@ Rules:
 - [x] Undo by batch and by last N
 - [x] Manual fix (by DOI, by edited fields) and refresh
 - [x] `core/watcher.py`: events, queue, start-up scan
-- [ ] Watcher: settings reload, folder reconcile (unplugged drive), retry timer, pause
+- [x] Watcher: settings reload, folder reconcile (unplugged drive), retry timer, pause
 - [ ] Folder rules: overlap, reference-manager warning
 - [ ] Every non-UI row of SPEC section 14 has a passing test
 
@@ -375,3 +375,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_watcher.py` — 1 passed with a fake observer and temporary files.
 - Decisions: Keep observer work on a queue so files are processed one at a time; each event receives its own undo batch.
 - Next: Add periodic settings reload, folder reconciliation, retry timer, and pause.
+
+### 2026-11-10  M3  Reconcile watcher state
+- Done: Added ten-second settings reload and folder reconciliation, reattachment scans, thirty-minute retry passes, and pause/resume behavior.
+- Files: `src/papernym/core/watcher.py`, `src/papernym/core/identify.py`, `tests/test_watcher.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_watcher.py` — 5 passed; an initial pause test exposed an in-memory config mutation and the watcher now tracks the prior pause state explicitly.
+- Decisions: Keep the last valid settings and existing watches if a reload is malformed; leave database rows alone while a folder is unavailable.
+- Next: Validate folder overlaps and warn about reference-manager storage.

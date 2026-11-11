@@ -147,6 +147,12 @@ class Identifier:
         self.read_only = False
         self._warned = set()
 
+    def reload_config(self, config: dict):
+        self.config = config
+        owner = getattr(self.http_get, "__self__", None)
+        if isinstance(owner, HttpClient):
+            owner.config = config
+
     def _cached(self, ident: str) -> PaperMatch | None:
         if self.db is None:
             return None
