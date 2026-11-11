@@ -57,12 +57,26 @@ contains Anaconda or MSYS makes it bundle the wrong `icuuc.dll`, and Qt fails to
 
 ## Release through GitHub
 
+One tag push releases everything:
+
+1. Bump `src/papernym/__init__.py` and add the version to `CHANGELOG.md`; commit and push.
+2. Tag and push:
+
 ```bat
-git tag v0.1.0
-git push origin v0.1.0
+git tag -a v0.1.3 -m "PaperNym 0.1.3"
+git push origin v0.1.3
 ```
 
-`.github/workflows/windows-release.yml` then:
+Two workflows start from the tag:
+
+- `windows-release.yml` builds the installer and attaches it to the GitHub Release.
+- `pypi-release.yml` publishes the package to PyPI (see "Publishing to PyPI" below).
+
+Each checks that the tag equals `papernym.__version__` and runs the tests before it
+publishes anything. A version number can be used only once on PyPI, so a failed release is
+fixed with a new version, not by moving the tag.
+
+`.github/workflows/windows-release.yml` in detail:
 
 1. checks that the tag equals `papernym.__version__`;
 2. runs the tests;
@@ -92,13 +106,17 @@ Trusted Signing are the low-cost routes.
 
 ## Publishing to PyPI
 
-`.github/workflows/pypi-release.yml` builds the Python package (sdist and wheel), runs
-`twine check --strict`, makes sure the sdist holds only `src/`, `tests/` and the project
-files, installs the wheel in a clean environment and runs the CLI, then uploads with
-**trusted publishing**: PyPI trusts this repository's workflow, so there is no API token or
-password to store.
+`.github/workflows/pypi-release.yml` runs the tests on Windows, builds the Python package
+(sdist and wheel), runs `twine check --strict`, makes sure the sdist holds only `src/`,
+`tests/` and the project files, installs the wheel in a clean environment and runs the CLI,
+then uploads with **trusted publishing**: PyPI trusts this repository's workflow, so there
+is no API token or password to store.
 
-Start it from **Actions → PyPI release → Run workflow** and pick a target:
+**On a `v*` tag push** it publishes to PyPI automatically, after checking that the tag
+equals `papernym.__version__`. If the GitHub environment `pypi` has required reviewers, the
+upload waits for your approval on the run page.
+
+**By hand**, start it from **Actions → PyPI release → Run workflow** and pick a target:
 
 | Target | Uploads to |
 |---|---|

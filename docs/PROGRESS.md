@@ -547,3 +547,7 @@ Newest entry at the bottom. Use this shape:
 - Checked: `uv build` and `twine check --strict` pass for 0.1.3; full test suite passes with exit code 0.
 - Next: owner tags `v0.1.3` (Windows release) and runs `pypi-release.yml` with target `pypi`.
 
+### 2026-11-11  M7  PyPI publishing on tag push
+- Done: `pypi-release.yml` now also runs on `v*` tag pushes and then publishes to PyPI (manual runs keep the `testpypi` / `pypi` / `build-only` choice). New `test` job runs the full suite on `windows-latest` (offscreen Qt); both publish jobs need `test` and `build`. On a tag, the build job checks the tag equals `__version__` (read from the source file). Same workflow file and environment names, so the owner's trusted publishers still match. `docs/BUILDING.md`: one tag push releases the Windows installer and the PyPI package.
+- Checked: `actionlint` passes for both workflows; the version-check snippet reads 0.1.3 and matches `v0.1.3` locally. Not run on GitHub yet; the next tag push (`v0.1.3`) is the first real run.
+
