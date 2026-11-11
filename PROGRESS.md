@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M2
-- **Next task:** local `pdfread` check on temporary copies of `sample_pdfs/`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_regression.py` — 8 passed
+- **Current milestone:** M2 complete; awaiting owner to start M3
+- **Next task:** M3 `core/engine.py` per-file logic and statuses
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 119 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -49,7 +49,7 @@ Rules:
 - [x] `core/identify.py`: outage handling and the offline fallback rules
 - [x] `title_search` privacy switch honoured
 - [x] Regression table in SPEC section 17 passes
-- [ ] Local check: `pdfread` on a copy of every file in `sample_pdfs/`; log the DOI and title guess found for each
+- [x] Local check: `pdfread` on a copy of every file in `sample_pdfs/`; log the DOI and title guess found for each
 
 ### M3 Core, part 3
 - [ ] `core/engine.py`: per-file logic and all five statuses
@@ -293,3 +293,22 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_regression.py` — 8 passed.
 - Decisions: Keep the fixture responses in tests so CI passes without live services or copyrighted sample files; the next local check separately reads copies of the real PDFs.
 - Next: Run `pdfread` on temporary copies of all sample PDFs and log each DOI and title guess.
+
+### 2026-11-10  M2  Check sample copies and complete milestone
+- Done: Copied all 11 sample PDFs to a temporary folder, read the copies, and recorded the first DOI and page-layout title guess. Added explicit failover tests for each DOI source.
+- Files: `scripts/check_pdfread_samples.py`, `tests/test_identify.py`, `PROGRESS.md`; `sample_pdfs/` remained untouched.
+- Tests: `.\.venv\Scripts\python.exe scripts\check_pdfread_samples.py` — 11/11 temporary copies read successfully with a temporary `PAPERNYM_HOME`. The first ad-hoc console run stopped while printing a Unicode symbol; the reusable script uses ASCII-safe JSON and completed. `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-m2-full-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — 119 passed. `git diff --check` — clean.
+- Local results (file — DOI — title guess):
+  - `1-s2.0-S0001457517300842-main.pdf` — `10.1016/j.aap.2017.02.022` — Crash data quality for road safety research: Current state and future directions.
+  - `1-s2.0-S0001457525001344-main.pdf` — `10.1016/j.aap.2025.108048` — Evaluating crash risk factors of farm equipment vehicles on county and non-county roads using interpretable tabular deep learning (TabNet).
+  - `1-s2.0-S0957417426008080-main-2 (2).pdf` — `10.1016/j.eswa.2026.131895` — Supervised clustering using SOM for severity-based pattern detection in urban traffic crashes.
+  - `1-s2.0-S0968090X25002256-main.pdf` — `10.1016/j.trc.2025.105221` — Dry bulk terminal operations: A critical review of models and optimization methods.
+  - `1-s2.0-S0968090X25004322-main (1).pdf` — `10.1016/j.trc.2025.105428` — A review of knowledge graph construction using large language models in transportation: Problems, methods, and challenges (trailing star symbol in PDF text).
+  - `1-s2.0-S0968090X2600255X-main.pdf` — `10.1016/j.trc.2026.105767` — A review of learning-based motion planning: toward a data-driven optimal control approach.
+  - `1-s2.0-S0968090X26005735-main.pdf` — `10.1016/j.trc.2026.106087` — Short-term demand forecasting in mobility-on-demand systems: A systematic literature review and research agenda.
+  - `1-s2.0-S2213665726000394-main.pdf` — `10.1016/j.amar.2026.100456` — Journal Pre-proof (embedded title correctly gives Understanding the determinants of multi-vehicle crash types at ramp terminals: insights from a partially constrained temporal modeling approach).
+  - `97770f42-85cc-4285-b189-98a823efa6b1.pdf` — `10.1016/j.aap.2024.107801` — Uncertainty-aware probabilistic graph neural networks for road-level traffic crash prediction.
+  - `islam-et-al-2026-crash-risk-analysis-of-non-motorists-using-interpretable-tabular-deep-learning.pdf` — `10.1177/03611981261468749` — Crash Risk Analysis of Non-Motorists (embedded title contains the rest of the title).
+  - `mohammadi-et-al-2026-lidar-based-pavement-marking-detection-for-construction-engineering-a-systematic-review-of-methods.pdf` — `10.1061/jcemd4.coeng-18256` — LiDAR-Based Pavement Marking Detection for Construction Engineering: A Systematic Review of Methods and Applications.
+- Decisions: Use the embedded title as a later title-search candidate when the page-layout guess is a cover label; always verify a title-search result against the printed first author.
+- Next: Await the owner's instruction before M3 engine work.

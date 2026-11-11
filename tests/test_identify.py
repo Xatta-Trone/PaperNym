@@ -208,3 +208,34 @@ def test_title_search_privacy_switch_sends_no_titles():
     assert all(hidden not in str(call) for call in calls)
     assert all("query.bibliographic" not in str(call) and "search/match" not in str(call)
                for call in calls)
+
+
+@pytest.mark.parametrize("failed,expected_source", [
+    ("crossref", "doi.org"), ("doi.org", "openalex"),
+    ("openalex", "semanticscholar"), ("semanticscholar", None),
+])
+def test_doi_sources_fail_over_in_order(failed, expected_source):
+    title = "A detailed study of road crash severity"
+    names = ("crossref", "doi.org", "openalex", "semanticscholar")
+    responses = {
+        "crossref": {"message": csl(title)},
+        "doi.org": csl(title),
+        "openalex": {"title": title, "publication_year": 2025,
+                     "authorships": [{"author": {"display_name": "Alice Smith"}}]},
+        "semanticscholar": {"title": title, "year": 2025, "authors": [{"name": "Alice Smith"}]},
+    }
+    calls = []
+
+    def get(url, **_kwargs):
+        source = ("crossref" if "crossref" in url else "doi.org" if "doi.org" in url else
+                  "openalex" if "openalex" in url else "semanticscholar")
+        calls.append(source)
+        if source == failed:
+            raise NetError("offline")
+        return responses[source] if source == expected_source else None
+
+    match, stats = Identifier({"title_search": False, "openalex_key": "key"}, get).identify_online(
+        "paper.pdf", info(title * 8, md_dois=["10.1234/paper"]))
+    assert (match.meta["source"] if match else None) == expected_source
+    assert calls == list(names[:names.index(expected_source) + 1] if expected_source else names)
+    assert stats.failed == 1
