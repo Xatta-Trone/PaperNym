@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** outage handling and offline PDF fallback
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 7 passed
+- **Next task:** verify the `title_search` privacy switch
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 20 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -46,7 +46,7 @@ Rules:
 - [x] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
 - [x] `core/identify.py`: DOI, arXiv and title-search paths with verification
 - [x] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
-- [ ] `core/identify.py`: outage handling and the offline fallback rules
+- [x] `core/identify.py`: outage handling and the offline fallback rules
 - [ ] `title_search` privacy switch honoured
 - [ ] Regression table in SPEC section 17 passes
 - [ ] Local check: `pdfread` on a copy of every file in `sample_pdfs/`; log the DOI and title guess found for each
@@ -272,3 +272,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 7 passed with temporary databases.
 - Decisions: Do not cache a miss when a service failed during that identifier's lookup; cached misses count as previously reached sources for later offline decisions.
 - Next: Add outage outcomes and conservative PDF-only fallback.
+
+### 2026-11-10  M2  Handle outages and offline metadata
+- Done: Added `ok`, `unknown`, and `_CHECK` identification outcomes, attempt accounting, conservative author selection, and offline year priority.
+- Files: `src/papernym/core/identify.py`, `tests/test_identify.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 20 passed, including outage, author, and year cases.
+- Decisions: Return explicit outcomes for the engine to record later; offline metadata stays marked `pdf-only` and is not put into the online cache.
+- Next: Verify the title-search privacy setting.

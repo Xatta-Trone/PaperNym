@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .pdfread import ARXIV_FILE_RE, ARXIV_RE, find_dois
+from .pdfread import ARXIV_FILE_RE, ARXIV_RE, YEAR_RE, find_dois
+from .sources.common import surname
 from .sources import arxiv, crossref, doiorg, openalex, semanticscholar
 from .sources.http import HttpClient, NetError
 
@@ -34,6 +35,14 @@ class PaperMatch:
     paper_id: str
     meta: dict
     status: str = "ok"
+
+
+@dataclass
+class IdentifyOutcome:
+    match: PaperMatch | None
+    status: str
+    attempts_delta: int
+    stats: LookupStats
 
 
 def ascii_fold(text: str) -> str:
@@ -71,6 +80,61 @@ def author_on_page(surname: str, page1: str) -> bool:
 def title_hit_ok(meta: dict | None, query: str, info: dict) -> bool:
     return bool(meta and meta.get("authors") and titles_match(meta["title"], query)
                 and author_on_page(meta["authors"][0], info["page1"]))
+
+
+def _author_names(raw: str) -> list[str]:
+    if not raw or ":" in raw:
+        return []
+    raw = re.sub(r"[\d*†‡§¶∗⁎]+", " ", raw)
+    raw = re.sub(r"(?<=\s)[a-z](?:\s*,\s*[a-z])*(?=\s*(?:,|;|·|$|\band\b))", " ", raw)
+    parts = [part.strip() for part in re.split(r"\s*(?:;|,|&|·|•|\band\b)\s*", raw) if part.strip()]
+    if len(parts) >= 2 and len(parts[0].split()) == 1 and 2 <= len(parts[1].split()) <= 5:
+        parts = [parts[1] + " " + parts[0]] + parts[2:]
+    parts = [part for part in parts if part.rstrip(".").lower() not in {"prof", "dr"}]
+    particles = {"de", "del", "van", "von", "der", "den", "da", "di", "la", "le", "bin", "al", "el"}
+    for part in parts:
+        words = part.split()
+        if not 2 <= len(words) <= 5:
+            return []
+        if any(not (word[0].isupper() or word.lower() in particles) for word in words):
+            return []
+    return parts
+
+
+def offline_record(info: dict) -> dict | None:
+    """Build conservative metadata from a paper-like PDF during an outage."""
+    title = info.get("md_title") or info.get("big_title")
+    if not title:
+        return None
+    page = info.get("page1", "")
+    year = None
+    for prefix in (r"(?:©|\(c\)|copyright)", r"(?:available online|published)", r"accepted"):
+        match = re.search(prefix + r"[^\n]{0,40}?\b(19[5-9]\d|20\d{2})\b", page, re.I)
+        if match:
+            year = int(match.group(1))
+            break
+    if year is None:
+        plausible = [int(value) for value in YEAR_RE.findall(page)
+                     if int(value) <= dt.date.today().year + 1]
+        if plausible:
+            counts = {value: plausible.count(value) for value in plausible}
+            year = max(plausible, key=lambda value: counts[value])
+        elif str(info.get("created", "")).isdigit():
+            year = int(info["created"])
+    md_names = _author_names(info.get("md_author", ""))
+    line_names = _author_names(info.get("author_line", ""))
+    md_first = surname(md_names[0]) if md_names else ""
+    line_first = surname(line_names[0]) if line_names else ""
+    if md_first and line_first:
+        first = md_first if normal_title(md_first) == normal_title(line_first) else ""
+    elif md_first:
+        first = md_first if author_on_page(md_first, page) else ""
+    elif len(line_names) >= 2:
+        first = line_first
+    else:
+        first = ""
+    return {"title": title, "year": year, "year_online": year,
+            "authors": [first] if first else [], "journal": "", "source": "pdf-only"}
 
 
 class Identifier:
@@ -196,3 +260,16 @@ class Identifier:
                 if stats.reached > before[0] and stats.failed == before[1]:
                     self._mark_miss(ident)
         return None, stats
+
+    def identify(self, path: str | Path, info: dict) -> IdentifyOutcome:
+        match, stats = self.identify_online(path, info)
+        if match:
+            return IdentifyOutcome(match, "ok", 0, stats)
+        if stats.reached:
+            return IdentifyOutcome(None, "unknown", 1, stats)
+        if info.get("paperish"):
+            meta = offline_record(info)
+            if meta:
+                paper_id = "title:" + normal_title(meta["title"])
+                return IdentifyOutcome(PaperMatch(paper_id, meta, "check"), "check", 0, stats)
+        return IdentifyOutcome(None, "unknown", 0, stats)

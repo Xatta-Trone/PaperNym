@@ -1,5 +1,7 @@
 from papernym.core.db import Database
-from papernym.core.identify import Identifier, author_on_page, title_in_text, titles_match
+import pytest
+
+from papernym.core.identify import Identifier, author_on_page, offline_record, title_in_text, titles_match
 from papernym.core.sources.http import NetError
 
 
@@ -144,3 +146,47 @@ def test_recent_miss_skips_lookup_but_old_miss_retries(tmp_path):
         db.put_miss("doi:10.1234/missing", old)
         identifier.identify_online("paper.pdf", pdf)
         assert len(calls) > count
+
+
+def test_outage_fallback_and_unknown_rules():
+    def down(_url, **_kwargs):
+        raise NetError("offline")
+
+    paper = info("Abstract 10.1234/paper", md_title="A useful research article", paperish=True)
+    outcome = Identifier({"title_search": False}, down).identify("paper.pdf", paper)
+    assert outcome.status == "check"
+    assert outcome.match.meta["source"] == "pdf-only"
+    assert outcome.attempts_delta == 0
+    assert outcome.stats.failed > 0
+    nonpaper = info("10.1234/paper", md_title="A useful research article", paperish=False)
+    assert Identifier({"title_search": False}, down).identify("file.pdf", nonpaper).status == "unknown"
+    answered = Identifier({"title_search": False}, lambda *_args, **_kwargs: None).identify(
+        "paper.pdf", paper)
+    assert answered.status == "unknown"
+    assert answered.attempts_delta == 1
+
+
+@pytest.mark.parametrize("md_author,author_line,page,expected", [
+    ("Alice Smith", "Alice Smith and Bob Jones", "Alice Smith wrote this", "Smith"),
+    ("Alice Smith", "Jane Jones and Bob Lee", "Alice Smith Jane Jones", ""),
+    ("Alice Smith", "", "Alice Smith wrote this", "Smith"),
+    ("Alice Smith", "", "Someone else wrote this", ""),
+    ("", "Alice Smith and Bob Jones", "Alice Smith Bob Jones", "Smith"),
+    ("", "Alice Smith", "Alice Smith wrote this", ""),
+    ("Naveen Eluru, Prof", "Md Monzurul Islam*", "Md Monzurul Islam", ""),
+])
+def test_offline_author_decisions(md_author, author_line, page, expected):
+    meta = offline_record(info(page, md_title="A useful research article",
+                               md_author=md_author, author_line=author_line))
+    assert meta["authors"] == ([expected] if expected else [])
+
+
+@pytest.mark.parametrize("page,created,expected", [
+    ("© 2025; received 2023", "2024", 2025),
+    ("Available online 2024; accepted 2023", "2022", 2024),
+    ("Accepted in 2023; received 2022", "2021", 2023),
+    ("Received 2021; 2022 2022 and 2023", "2020", 2022),
+    ("No year appears", "2020", 2020),
+])
+def test_offline_year_priority(page, created, expected):
+    assert offline_record(info(page, md_title="A useful research article", created=created))["year"] == expected
