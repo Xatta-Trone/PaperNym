@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** undo by batch and last N
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 11 passed
+- **Next task:** manual fix by DOI/fields and refresh
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 13 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -58,7 +58,7 @@ Rules:
 - [x] Scan with progress events; prune
 - [x] Dry run (scan and reformat)
 - [x] Reformat, including `include_manual`
-- [ ] Undo by batch and by last N
+- [x] Undo by batch and by last N
 - [ ] Manual fix (by DOI, by edited fields) and refresh
 - [ ] `core/watcher.py`: events, queue, start-up scan
 - [ ] Watcher: settings reload, folder reconcile (unplugged drive), retry timer, pause
@@ -354,3 +354,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 11 passed.
 - Decisions: Refresh a missing online year when the online year mode is requested; track that attempt in SQLite `meta` to avoid repeat lookups.
 - Next: Add safe undo by batch and by last N history rows.
+
+### 2026-11-10  M3  Undo safely
+- Done: Added undo for the latest batch or last N history rows, skipped occupied or missing paths, and kept file rows and `undone` history flags consistent.
+- Files: `src/papernym/core/engine.py`, `src/papernym/core/db.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 13 passed.
+- Decisions: An undone first rename retains the last tool-given name so the original name counts as user-chosen; undoing a reformat restores the earlier tool-given name.
+- Next: Add manual DOI/field fixes and metadata refresh.

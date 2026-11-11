@@ -191,6 +191,18 @@ class Database:
             return self.conn.execute("SELECT * FROM history ORDER BY id DESC").fetchall()
         return self.conn.execute("SELECT * FROM history WHERE batch=? ORDER BY id DESC", (batch,)).fetchall()
 
+    def undo_history_row(self, history_id: int, new_path: str | Path, old_file: dict) -> None:
+        """Move a file row back and mark one history entry undone atomically."""
+        columns = ("path", "display_path", "fingerprint", "size", "mtime", "status",
+                   "given_name", "paper_id", "attempts", "updated_at")
+        values = dict(old_file)
+        values["path"] = path_key(values["path"])
+        with self.conn:
+            self.conn.execute("DELETE FROM files WHERE path=?", (path_key(new_path),))
+            self.conn.execute("INSERT INTO files VALUES (?,?,?,?,?,?,?,?,?,?)",
+                              tuple(values.get(key) for key in columns))
+            self.conn.execute("UPDATE history SET undone=1 WHERE id=? AND undone=0", (history_id,))
+
     def get_miss(self, ident: str):
         return self.conn.execute("SELECT checked_at FROM misses WHERE ident=?", (ident,)).fetchone()
 

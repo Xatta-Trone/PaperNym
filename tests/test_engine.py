@@ -267,3 +267,45 @@ def test_reformat_old_record_looks_up_online_year_once(tmp_path):
         assert worker.reformat()["ok"] == 1
         assert fake.refresh_calls == 1
         assert db.get_paper("doi:10.1/test")["year_online"] == 2024
+
+
+def test_undo_latest_batch_and_last_n(tmp_path):
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    (papers / "one.pdf").write_bytes(b"one")
+    (papers / "two.pdf").write_bytes(b"two")
+    cfg = default_config()
+    cfg["folders"] = [{"path": str(papers), "recursive": True}]
+    with Database(tmp_path / "home") as db:
+        worker = Engine(cfg, db, FakeIdentifier(outcome()), read_pdf_fn=lambda _: {},
+                        stable_fn=lambda _: True)
+        assert worker.scan()["ok"] == 2
+        assert worker.undo() == {"undone": 2, "skipped": 0}
+        assert (papers / "one.pdf").exists() and (papers / "two.pdf").exists()
+        assert all(row["undone"] == 1 for row in db.history())
+        assert db.get_file(papers / "one.pdf")["given_name"] != "one.pdf"
+        assert worker.process(papers / "one.pdf").status == "skipped"
+        assert worker.undo() == {"undone": 0, "skipped": 0}
+
+
+def test_undo_does_not_overwrite_and_reformat_restores_given_name(tmp_path):
+    original = tmp_path / "download.pdf"
+    original.write_bytes(b"PDF")
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, FakeIdentifier(outcome()))
+        named = worker.process(original).path
+        original.write_bytes(b"unrelated obstacle")
+        assert worker.undo(last=1) == {"undone": 0, "skipped": 1}
+        assert original.read_bytes() == b"unrelated obstacle"
+        assert db.history()[0]["undone"] == 0
+        original.unlink()
+        assert worker.undo(last=1)["undone"] == 1
+        assert original.exists() and not named.exists()
+        worker.config["format"] = "{author}_{year}"
+        # Undo of the first rename leaves this file hand-named, so include it explicitly.
+        assert worker.reformat(include_manual=True)["ok"] == 1
+        reformatted = tmp_path / "Smith_2025.pdf"
+        assert reformatted.exists()
+        assert worker.undo(last=1)["undone"] == 1
+        assert original.exists()
+        assert db.get_file(original)["given_name"] == original.name

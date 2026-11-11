@@ -321,3 +321,34 @@ class Engine:
                                   source="reformat", given_name=row["given_name"], dry_run=dry_run)
             counts[result.status] = counts.get(result.status, 0) + 1
         return counts
+
+    def undo(self, last: int | None = None) -> dict[str, int]:
+        """Undo the latest batch or the latest N renames, never overwriting."""
+        if last is not None and last < 1:
+            raise ValueError("last must be a positive integer")
+        rows = self.db.conn.execute("SELECT * FROM history WHERE undone=0 ORDER BY id DESC").fetchall()
+        if not rows:
+            return {"undone": 0, "skipped": 0}
+        chosen = rows[:last] if last is not None else [row for row in rows if row["batch"] == rows[0]["batch"]]
+        counts = {"undone": 0, "skipped": 0}
+        for history in chosen:
+            old = Path(history["old_path"])
+            new = Path(history["new_path"])
+            current = self.db.get_file(new)
+            if not new.exists() or old.exists() or current is None:
+                counts["skipped"] += 1
+                self._event("skipped", new, "cannot undo: moved, missing, or old name occupied")
+                continue
+            new.rename(old)
+            old_file = dict(current)
+            old_file.update({"path": str(old), "display_path": str(old),
+                             "given_name": old.name if history["source"] == "reformat" else current["given_name"],
+                             "updated_at": self._stamp()})
+            try:
+                self.db.undo_history_row(history["id"], new, old_file)
+            except Exception:
+                old.rename(new)
+                raise
+            counts["undone"] += 1
+            self._event("undo", old, f"{new.name} -> {old.name}", old_path=str(new), new_path=str(old))
+        return counts
