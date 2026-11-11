@@ -513,3 +513,9 @@ Newest entry at the bottom. Use this shape:
 ### 2026-11-11  Repo  Move pdf_metadata.py into prototype/
 - Done: owner asked to clear it from the root. `pdf_metadata.py` (a 79-line PyMuPDF script that prints a PDF's properties) is used by nothing in the package, tests, build or workflow, so it moved unchanged with `git mv` to `prototype/`, next to the other read-only prototype scripts. SPEC section 19 updated.
 
+
+### 2026-11-11  M6  First release run: a config read during a save failed on the runner
+- Problem: the `v0.1.0` workflow failed in its test step (240 passed, 1 failed): `test_installer_start_at_login_choice_is_adopted_once` read `config.json` while the worker thread was replacing it, and Windows answered `PermissionError` (a sharing violation during `os.replace`). Not reproducible on the owner's faster machine, but real: the tray app and the CLI share this file.
+- Fix: `config._retry_shared` retries the read in `load_config` and the `os.replace` in `save_config` on `PermissionError`, Windows only, up to about 2 s. Also found while reproducing CI on Python 3.11: `tests/pdf_factory.py` used a backslash inside an f-string expression, a SyntaxError before Python 3.12 (the package supports 3.10+); fixed.
+- Tests: `test_reading_while_another_thread_saves` (fails on the old code, passes now), `test_sharing_violation_is_retried_then_reported`; full run 243 passed, three times.
+- Next: move tag `v0.1.0` to this commit and rerun the release.

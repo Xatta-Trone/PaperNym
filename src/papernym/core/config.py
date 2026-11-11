@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -105,6 +106,22 @@ def validate_config(config: dict) -> dict:
     return result
 
 
+def _retry_shared(action, attempts: int = 40, delay: float = 0.05):
+    """Run a file action, retrying briefly on Windows sharing violations.
+
+    On Windows, reading config.json while another thread or process replaces it (or
+    replacing it while someone reads it) fails with PermissionError for a moment. The
+    tray app and the CLI share this file, so wait up to about 2 s before giving up.
+    """
+    for attempt in range(attempts):
+        try:
+            return action()
+        except PermissionError:
+            if os.name != "nt" or attempt == attempts - 1:
+                raise
+            time.sleep(delay)
+
+
 def load_config(home: str | Path | None = None, *, apply_env: bool = True) -> dict:
     """Load settings, applying environment API keys in memory only.
 
@@ -113,7 +130,7 @@ def load_config(home: str | Path | None = None, *, apply_env: bool = True) -> di
     """
     path = settings_dir(home) / "config.json"
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = json.loads(_retry_shared(lambda: path.read_text(encoding="utf-8")))
     except FileNotFoundError:
         raw = {}
     except (OSError, json.JSONDecodeError) as exc:
@@ -171,7 +188,7 @@ def save_config(config: dict, home: str | Path | None = None) -> None:
             os.fsync(stream.fileno())
         if os.name != "nt" and any(validated[key] for key in SECRET_KEYS):
             os.chmod(temp_path, 0o600)
-        os.replace(temp_path, path)
+        _retry_shared(lambda: os.replace(temp_path, path))
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)

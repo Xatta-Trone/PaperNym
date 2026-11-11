@@ -136,3 +136,52 @@ def test_retired_title_limit_is_dropped(tmp_path):
     config.save_config(loaded, tmp_path)
     assert "title_limit" not in json.loads((tmp_path / "config.json").read_text())
 
+
+
+def test_reading_while_another_thread_saves(tmp_path):
+    """On Windows a read during os.replace hits a sharing violation; it must be retried."""
+    import threading
+
+    config.save_config(config.default_config(), tmp_path)
+    errors, stop = [], threading.Event()
+
+    def writer():
+        settings = config.default_config()
+        try:
+            while not stop.is_set():
+                settings["year"] = "online" if settings["year"] == "citation" else "citation"
+                config.save_config(settings, tmp_path)
+        except Exception as exc:  # noqa: BLE001 - reported below
+            errors.append(exc)
+
+    thread = threading.Thread(target=writer)
+    thread.start()
+    try:
+        for _ in range(300):
+            assert config.load_config(tmp_path)["year"] in ("citation", "online")
+    finally:
+        stop.set()
+        thread.join()
+    assert not errors
+
+
+def test_sharing_violation_is_retried_then_reported(monkeypatch):
+    config_module = config
+
+    monkeypatch.setattr(config_module.time, "sleep", lambda _: None)
+    monkeypatch.setattr(config_module.os, "name", "nt")
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise PermissionError("in use")
+        return "ok"
+
+    assert config_module._retry_shared(flaky) == "ok" and len(calls) == 3
+
+    def always():
+        raise PermissionError("in use")
+
+    with pytest.raises(PermissionError):
+        config_module._retry_shared(always, attempts=3)
