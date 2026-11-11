@@ -52,7 +52,10 @@ def _valid_database(path: Path) -> bool:
     try:
         con = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
         try:
-            return con.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+            if con.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                return False
+            version = con.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+            return version is not None and version[0] == str(SCHEMA_VERSION)
         finally:
             con.close()
     except sqlite3.DatabaseError:

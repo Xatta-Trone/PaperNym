@@ -100,7 +100,7 @@ def token_values(meta: dict, year_mode: str = "citation", word_sep: str = "_") -
         many = first
     year = meta.get("year_online") if year_mode == "online" else meta.get("year")
     title = clean_field(meta.get("title", ""), word_sep)
-    raw_short = " ".join(str(meta.get("title", "")).split()[:6])
+    raw_short = " ".join(_TAGS.sub("", str(meta.get("title", ""))).split()[:6])
     return {
         "year": str(year) if year else "nd",
         "author": clean_field(first, word_sep),
@@ -205,3 +205,76 @@ def build_name(meta: dict, template: str, folder: str | Path, *, word_sep: str =
     if not stem:
         raise NameBudgetError("template produced an empty PDF name")
     return stem + suffix + ".pdf"
+
+
+def _letter(index: int) -> str:
+    result = ""
+    while index:
+        index, digit = divmod(index - 1, 26)
+        result = chr(ord("a") + digit) + result
+    return result
+
+
+def unique_path(folder: str | Path, meta: dict, template: str, *, paper_id: str | None,
+                fingerprint: str | None, known: dict[str, tuple[str | None, str | None]] | None = None,
+                current: str | Path | None = None, word_sep: str = "_", year_mode: str = "citation",
+                title_limit: int = 0, suffix: str = "", windows: bool | None = None) -> Path:
+    """Choose a free path without overwriting any existing or planned file."""
+    folder = Path(folder)
+    windows = os.name == "nt" if windows is None else windows
+    identities = {os.path.normcase(os.path.abspath(path)): value for path, value in (known or {}).items()}
+    current_key = os.path.normcase(os.path.abspath(current)) if current is not None else None
+    limit = name_budget(folder, windows)
+
+    def owner(candidate: Path):
+        key = os.path.normcase(os.path.abspath(candidate))
+        if key == current_key:
+            return "current"
+        if key not in identities and not candidate.exists():
+            return None
+        other_id, other_fp = identities.get(key, (None, None))
+        if (paper_id and other_id == paper_id) or (fingerprint and other_fp == fingerprint):
+            return "same"
+        return "different"
+
+    def with_ending(base: str, ending: str) -> Path:
+        stem = base[:-4]
+        room = limit - _measure(ending + suffix + ".pdf", windows)
+        if room < 1:
+            raise NameBudgetError("folder path leaves no room for a collision suffix")
+        stem = _hard_cut(stem.removesuffix(suffix), room, windows).rstrip(" ._-")
+        return folder / f"{stem}{ending}{suffix}.pdf"
+
+    base = build_name(meta, template, folder, word_sep=word_sep, year_mode=year_mode,
+                      title_limit=title_limit, suffix=suffix, windows=windows)
+    candidate = folder / base
+    conflict = owner(candidate)
+    if conflict in (None, "current"):
+        return candidate
+    if conflict == "same":
+        for number in range(2, 10000):
+            candidate = with_ending(base, f"_dup{number}")
+            if owner(candidate) is None:
+                return candidate
+        raise NameBudgetError("too many duplicate names")
+
+    title_words = clean_field(meta.get("title", ""), " ").split()
+    if "{title}" in PRESETS.get(template, (template,))[0] or "{shorttitle}" in PRESETS.get(template, (template,))[0]:
+        for count in range(1, len(title_words) + 1):
+            extension_room = _measure(word_sep.join(title_words[:count]), windows)
+            try:
+                extended = build_name(meta, template, folder, word_sep=word_sep,
+                                      year_mode=year_mode, title_limit=max(title_limit, extension_room),
+                                      suffix=suffix, windows=windows, reserve=0)
+            except NameBudgetError:
+                break
+            candidate = folder / extended
+            if candidate.name == base:
+                continue
+            if owner(candidate) is None:
+                return candidate
+    for index in range(2, 10000):
+        candidate = with_ending(base, "_" + _letter(index))
+        if owner(candidate) is None:
+            return candidate
+    raise NameBudgetError("too many colliding names")

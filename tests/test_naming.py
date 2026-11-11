@@ -35,6 +35,8 @@ def test_two_authors_and_word_separator():
     assert naming.token_values(meta, word_sep=" ")["authors"] == "Smith and Jones"
     with pytest.raises(ValueError):
         naming.clean_field("x", "/")
+    assert naming.token_values({"title": "<i>Deep learning</i> for crash severity prediction today"})[
+        "shorttitle"] == "Deep_learning_for_crash_severity_prediction"
 
 
 @pytest.mark.parametrize("preset,expected", [
@@ -123,3 +125,42 @@ def test_long_non_title_fields_have_final_guard(tmp_path):
     name = naming.build_name(meta, "author_year", tmp_path, windows=False)
     assert len(name.encode("utf-8")) <= 255
     assert name.endswith(".pdf")
+
+
+def test_same_paper_collision_uses_dup_suffix_without_overwrite(tmp_path):
+    meta = sample_meta()
+    base = naming.build_name(meta, "year_author_title", tmp_path)
+    existing = tmp_path / base
+    existing.write_bytes(b"original")
+    known = {str(existing): ("doi:one", "fingerprint-one")}
+    second = naming.unique_path(tmp_path, meta, "year_author_title", paper_id="doi:one",
+                                fingerprint="fingerprint-two", known=known)
+    assert second.name.endswith("_dup2.pdf")
+    second.write_bytes(b"second")
+    third = naming.unique_path(tmp_path, meta, "year_author_title", paper_id="doi:one",
+                               fingerprint="fingerprint-three", known=known)
+    assert third.name.endswith("_dup3.pdf")
+    assert existing.read_bytes() == b"original"
+
+
+def test_different_paper_collision_extends_title(tmp_path):
+    first = {"title": "Shared beginning one", "year": 2025, "authors": ["Smith"]}
+    second = {"title": "Shared beginning two", "year": 2025, "authors": ["Smith"]}
+    base = naming.build_name(first, "year_author_title", tmp_path, title_limit=16)
+    (tmp_path / base).write_bytes(b"original")
+    candidate = naming.unique_path(tmp_path, second, "year_author_title", paper_id="doi:two",
+                                   fingerprint="second", title_limit=16,
+                                   known={str(tmp_path / base): ("doi:one", "first")})
+    assert candidate.name == "2025_Smith_Shared_beginning_two.pdf"
+    assert (tmp_path / base).read_bytes() == b"original"
+
+
+def test_different_paper_without_title_uses_letters(tmp_path):
+    meta = sample_meta()
+    base = tmp_path / "Bermudez_2025.pdf"
+    base.write_bytes(b"one")
+    (tmp_path / "Bermudez_2025_b.pdf").write_bytes(b"two")
+    candidate = naming.unique_path(tmp_path, meta, "author_year", paper_id="doi:three",
+                                   fingerprint="three")
+    assert candidate.name == "Bermudez_2025_c.pdf"
+    assert base.read_bytes() == b"one"

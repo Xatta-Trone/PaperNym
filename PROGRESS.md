@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M1
-- **Next task:** `core/naming.py` collision handling
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 37 passed
+- **Current milestone:** M1 complete; awaiting owner to start M2
+- **Next task:** M2 `core/pdfread.py` text and metadata extraction
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 66 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -37,7 +37,7 @@ Rules:
 - [x] `core/naming.py`: the 15 fixed presets (SPEC section 7)
 - [x] `core/naming.py`: custom templates with fixed text, and every validation rule
 - [x] `core/naming.py`: length budget (255 name, Windows 259 path), whole-word cut
-- [ ] `core/naming.py`: collision rules (`_dupN` for the same paper, title extension for different papers)
+- [x] `core/naming.py`: collision rules (`_dupN` for the same paper, title extension for different papers)
 
 ### M2 Core, part 2
 - [ ] `core/pdfread.py` on `pypdfium2`: text, lines with font size, rotation, properties, extra keys, XMP
@@ -223,3 +223,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 37 passed, including deep-path and non-Latin cases.
 - Decisions: Raise `NameBudgetError` when a folder path itself leaves no room for a PDF name; hard-cut overlong non-title fields as the specification requires.
 - Next: Distinguish same-paper and different-paper name collisions.
+
+### 2026-11-10  M1  Resolve collisions and complete milestone
+- Done: Added collision-safe path selection: `_dupN` for another copy of the same paper, title extension for different papers, and `_b`, `_c` when no title extension fits. Strengthened recovery to reject backups without PaperNym's schema and corrected short titles containing HTML tags.
+- Files: `src/papernym/core/naming.py`, `src/papernym/core/db.py`, `tests/test_naming.py`, `tests/test_db.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_naming.py` — 40 passed before the final audit; `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-m1-full-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — 66 passed after the fixes. `git diff --check` — clean.
+- Decisions: Check both existing filesystem paths and planned/database identities before choosing a name; treat untracked files as different papers so they can never be overwritten.
+- Next: Await the owner's instruction before M2 PDF reading.

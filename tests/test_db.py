@@ -74,6 +74,14 @@ def test_corruption_without_backup_stops(tmp_path):
     assert (tmp_path / "papers.db").read_bytes() == b"broken sqlite"
 
 
+def test_unrelated_sqlite_backup_cannot_replace_corrupt_database(tmp_path):
+    (tmp_path / "papers.db").write_bytes(b"broken sqlite")
+    with sqlite3.connect(tmp_path / "papers.db.bak") as unrelated:
+        unrelated.execute("CREATE TABLE unrelated (x TEXT)")
+    with pytest.raises(DatabaseError, match="no valid backup"):
+        Database(tmp_path)
+
+
 def test_prototype_migration_imports_state_history_and_config(tmp_path):
     old = tmp_path / "PaperRenamer"
     old.mkdir()
