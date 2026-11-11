@@ -214,12 +214,30 @@ def test_menu_entry_on_linux(home, tmp_path, capsys, monkeypatch):
     assert code == 0 and not entry.exists()
 
 
-def test_menu_entry_is_linux_only(home, capsys, monkeypatch):
+def test_menu_entry_on_macos_makes_an_app(home, tmp_path, capsys, monkeypatch):
+    import sys
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from papernym.core import autostart
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(autostart, "os", SimpleNamespace(name="posix", environ=os.environ))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    app = tmp_path / "Applications" / "PaperNym.app"
+    code, out, _ = run(capsys, "menu-entry")
+    if code == 0:  # PySide6 installed (the test environment has it)
+        assert (app / "Contents" / "Info.plist").is_file() and "Spotlight" in out
+    code, out, _ = run(capsys, "menu-entry", "--remove")
+    assert code == 0 and not app.exists()
+
+
+def test_menu_entry_is_not_for_windows(home, capsys, monkeypatch):
     import sys
 
     monkeypatch.setattr(sys, "platform", "win32")
     code, _, err = run(capsys, "menu-entry")
-    assert code == 1 and "Linux" in err
+    assert code == 1 and "Linux and macOS" in err
 
 
 def test_scan_without_folders_says_so(home, capsys):

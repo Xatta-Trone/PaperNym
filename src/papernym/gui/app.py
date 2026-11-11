@@ -8,6 +8,7 @@ import hashlib
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -679,11 +680,34 @@ def parse_args(argv):
                         help="temporary settings and a temporary copy of sample_pdfs/; nothing real is touched")
     parser.add_argument("--show", action="store_true", help="open the main window at start")
     parser.add_argument("--debug", action="store_true", help="log to the console at debug level")
+    parser.add_argument("--foreground", action="store_true",
+                        help="macOS: stay attached to the terminal instead of running in the background")
     return parser.parse_args(argv)
 
 
+def should_detach(args) -> bool:
+    """On macOS a launch from a terminal moves to the background, so closing the terminal
+    window does not quit PaperNym. Launches from Finder, Spotlight or login have no terminal."""
+    if sys.platform != "darwin" or args.foreground or args.debug:
+        return False
+    return sys.stdin is not None and sys.stdin.isatty()
+
+
+def detach(argv: list[str]) -> None:
+    """Start PaperNym again in its own session, without the terminal (this process then exits)."""
+    command = autostart.launch_argv() + list(argv)
+    subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+    print("PaperNym is running in the background; find it in the menu bar or open it from "
+          "Spotlight. Use --foreground to keep it in this terminal.")
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(sys.argv[1:] if argv is None else argv)
+    argv = sys.argv[1:] if argv is None else argv
+    args = parse_args(argv)
+    if should_detach(args):
+        detach(argv)
+        return 0
     if args.debug:
         _attach_console()
         if sys.stderr is not None:
@@ -712,9 +736,9 @@ def main(argv: list[str] | None = None) -> int:
         log.info("sandbox: settings %s, papers %s (%d sample PDFs)", home, papers, count)
     elif autostart.needs_menu_entry():
         try:
-            autostart.install_menu_entry()  # pip/pipx on Linux: show up in the app menu
+            autostart.install_menu_entry()  # pip/pipx: Linux app menu, or ~/Applications on macOS
         except OSError as exc:
-            log.warning("could not write the app-menu entry: %s", exc)
+            log.warning("could not write the launcher %s: %s", autostart.launcher_path(), exc)
     home = settings_dir()
     server = QLocalServer()
     if not server.listen(name):

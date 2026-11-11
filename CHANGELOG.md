@@ -13,6 +13,12 @@ All notable changes to PaperNym. Versions follow [semantic versioning](https://s
   it back; it now quits.
 - Fixed: renaming failed on Linux drives without hard links (FAT/exFAT USB drives, some
   network shares).
+- macOS (pip installs, not yet tried on a real Mac): `papernym-gui` started from Terminal
+  moves to the background, so closing Terminal no longer quits it (`--foreground` keeps
+  it attached); the app adds itself to `~/Applications` for Spotlight and Launchpad
+  (`papernym menu-entry`); **Start at login** uses a LaunchAgent (it did nothing before);
+  **Show in folder** selects the file in Finder. The tests now also run on macOS.
+- README: install with pip first, with pipx as the alternative.
 
 ## 0.1.3 — 2026-11-11
 

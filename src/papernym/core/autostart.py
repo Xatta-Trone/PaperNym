@@ -1,15 +1,26 @@
-"""Desktop integration: Start at login (Windows Run key, or a Linux autostart .desktop file) and,
-on Linux, the app-menu entry for pip/pipx installs."""
+"""Desktop integration for each platform.
+
+Start at login: the Windows Run key, a macOS LaunchAgent, or a Linux autostart .desktop file.
+For pip/pipx installs, which have no installer: an app-menu entry on Linux, and a small
+PaperNym.app launcher in ~/Applications on macOS.
+"""
 
 from __future__ import annotations
 
 import os
+import plistlib
+import shlex
 import sys
 from pathlib import Path
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE = "PaperNym"
 DESKTOP_ID = "papernym"  # papernym.desktop; the GUI sets the same desktop file name
+MAC_LABEL = "io.github.xatta-trone.papernym"  # LaunchAgent label and app bundle identifier
+
+
+def is_macos() -> bool:
+    return sys.platform == "darwin"
 
 
 def launch_command() -> str:
@@ -21,6 +32,13 @@ def launch_command() -> str:
     if os.name == "nt" and windowless.exists():
         exe = windowless
     return f'"{exe}" -m papernym.gui'
+
+
+def launch_argv() -> list[str]:
+    """The same command as a list (macOS LaunchAgent and app launcher)."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable]
+    return [sys.executable, "-m", "papernym.gui"]
 
 
 def icon_path() -> Path:
@@ -39,14 +57,15 @@ def desktop_entry(command: str, *, autostart: bool = False) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _write_if_changed(path: Path, text: str) -> bool:
+def _write_if_changed(path: Path, data: str | bytes) -> bool:
+    raw = data.encode("utf-8") if isinstance(data, str) else data
     try:
-        if path.read_text(encoding="utf-8") == text:
+        if path.read_bytes() == raw:
             return False
     except OSError:
         pass
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    path.write_bytes(raw)
     return True
 
 
@@ -60,6 +79,25 @@ def menu_file() -> Path:
     return base / "applications" / f"{DESKTOP_ID}.desktop"
 
 
+def launch_agent_file() -> Path:
+    return Path.home() / "Library" / "LaunchAgents" / f"{MAC_LABEL}.plist"
+
+
+def launch_agent(argv: list[str]) -> bytes:
+    """A per-user LaunchAgent that starts the tray app once when the user logs in."""
+    return plistlib.dumps({
+        "Label": MAC_LABEL,
+        "ProgramArguments": argv,
+        "RunAtLoad": True,
+        "ProcessType": "Interactive",
+        "LimitLoadToSessionType": "Aqua",  # the graphical login session only
+    })
+
+
+def _login_file() -> Path:
+    return launch_agent_file() if is_macos() else _desktop_file()
+
+
 def is_enabled() -> bool:
     if os.name == "nt":
         import winreg
@@ -70,7 +108,7 @@ def is_enabled() -> bool:
             return True
         except OSError:
             return False
-    return _desktop_file().exists()
+    return _login_file().exists()
 
 
 def set_enabled(enabled: bool) -> None:
@@ -86,27 +124,82 @@ def set_enabled(enabled: bool) -> None:
                 except FileNotFoundError:
                     pass
         return
-    path = _desktop_file()
-    if enabled:
-        _write_if_changed(path, desktop_entry(launch_command(), autostart=True))
-    else:
+    path = _login_file()
+    if not enabled:
         path.unlink(missing_ok=True)
+    elif is_macos():  # launchd reads it at the next login; nothing to load now
+        _write_if_changed(path, launch_agent(launch_argv()))
+    else:
+        _write_if_changed(path, desktop_entry(launch_command(), autostart=True))
+
+
+def app_bundle() -> Path:
+    return Path.home() / "Applications" / "PaperNym.app"
+
+
+def icns(png: bytes) -> bytes:
+    """A one-image .icns holding the 1024 px PNG ("ic10"); macOS scales it for every size."""
+    entry = b"ic10" + (8 + len(png)).to_bytes(4, "big") + png
+    return b"icns" + (8 + len(entry)).to_bytes(4, "big") + entry
+
+
+def _bundle_files(argv: list[str]) -> dict[str, bytes]:
+    """Info.plist, the launcher script and the icon of ~/Applications/PaperNym.app."""
+    from .. import __version__
+
+    quoted = " ".join(shlex.quote(arg) for arg in argv)
+    info = plistlib.dumps({
+        "CFBundleName": "PaperNym",
+        "CFBundleDisplayName": "PaperNym",
+        "CFBundleIdentifier": MAC_LABEL,
+        "CFBundleExecutable": "PaperNym",
+        "CFBundleIconFile": "PaperNym",
+        "CFBundlePackageType": "APPL",
+        "CFBundleShortVersionString": __version__,
+        "CFBundleVersion": __version__,
+        "NSHighResolutionCapable": True,
+    })
+    # exec replaces the shell, so the app is this Python process; --show opens the window
+    # (a second launch only asks the running copy to show its window).
+    script = f'#!/bin/sh\nexec {quoted} --show "$@"\n'.encode("utf-8")
+    return {"Contents/Info.plist": info, "Contents/MacOS/PaperNym": script,
+            "Contents/Resources/PaperNym.icns": icns(icon_path().read_bytes())}
 
 
 def needs_menu_entry() -> bool:
-    """Linux pip/pipx installs need their own menu entry; the .deb and Windows ship one."""
-    return sys.platform.startswith("linux") and not getattr(sys, "frozen", False)
+    """pip/pipx installs need their own launcher: an app-menu entry on Linux, an app in
+    ~/Applications on macOS. The .deb and the Windows installer ship their own."""
+    return (sys.platform.startswith("linux") or is_macos()) and not getattr(sys, "frozen", False)
+
+
+def launcher_path() -> Path:
+    """Where install_menu_entry() puts the launcher on this platform."""
+    return app_bundle() if is_macos() else menu_file()
 
 
 def install_menu_entry() -> bool:
-    """Write (or refresh) the user's app-menu entry. True if the file changed."""
-    return _write_if_changed(menu_file(), desktop_entry(launch_command() + " --show"))
+    """Write (or refresh) the user's launcher. True if anything changed."""
+    if not is_macos():
+        return _write_if_changed(menu_file(), desktop_entry(launch_command() + " --show"))
+    changed = False
+    for name, data in _bundle_files(launch_argv()).items():
+        changed |= _write_if_changed(app_bundle() / name, data)
+    script = app_bundle() / "Contents/MacOS/PaperNym"
+    if script.stat().st_mode & 0o777 != 0o755:
+        script.chmod(0o755)
+        changed = True
+    return changed
 
 
 def remove_menu_entry() -> bool:
-    path = menu_file()
+    path = launcher_path()
     existed = path.exists()
-    path.unlink(missing_ok=True)
+    if path.is_dir():
+        import shutil
+
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
     return existed
 
 

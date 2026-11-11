@@ -71,6 +71,8 @@ def show_in_folder(path: str | Path):
     path = Path(path)
     if sys.platform == "win32" and path.exists():
         subprocess.Popen(["explorer", "/select,", str(path)])
+    elif sys.platform == "darwin" and path.exists():
+        subprocess.Popen(["open", "-R", str(path)])  # Finder, with the file selected
     elif sys.platform.startswith("linux") and path.exists() and _select_in_file_manager(path):
         return
     else:

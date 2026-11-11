@@ -296,6 +296,7 @@ def test_first_run_flag(qapp, make_ctl, tmp_path):
 def test_autostart_linux_desktop_file(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
+    monkeypatch.setattr(autostart.sys, "platform", "linux")
     monkeypatch.setattr(autostart, "os", SimpleNamespace(name="posix", environ=os.environ))
     monkeypatch.setattr(autostart, "launch_command", lambda: '"python" -m papernym.gui')
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -307,6 +308,7 @@ def test_autostart_linux_desktop_file(tmp_path, monkeypatch):
 
 
 def test_menu_entry_is_written_once_and_removed(tmp_path, monkeypatch):
+    monkeypatch.setattr(autostart.sys, "platform", "linux")
     monkeypatch.setattr(autostart, "launch_command", lambda: '"/opt/venv/bin/python" -m papernym.gui')
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     assert autostart.install_menu_entry()
@@ -326,8 +328,85 @@ def test_menu_entry_only_for_linux_pip_installs(monkeypatch):
     monkeypatch.setattr(autostart.sys, "frozen", True, raising=False)
     assert not autostart.needs_menu_entry()  # the .deb ships its own entry
     monkeypatch.setattr(autostart.sys, "frozen", False)
+    monkeypatch.setattr(autostart.sys, "platform", "darwin")
+    assert autostart.needs_menu_entry()  # macOS pip installs get ~/Applications/PaperNym.app
     monkeypatch.setattr(autostart.sys, "platform", "win32")
     assert not autostart.needs_menu_entry()
+
+
+@pytest.fixture
+def macos(tmp_path, monkeypatch):
+    """Pretend to be a macOS pip install whose home folder is tmp_path."""
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(autostart.sys, "platform", "darwin")
+    monkeypatch.setattr(autostart, "os", SimpleNamespace(name="posix", environ=os.environ))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(autostart, "launch_argv", lambda: ["/opt/my venv/bin/python", "-m", "papernym.gui"])
+    return tmp_path
+
+
+def test_autostart_macos_launch_agent(macos):
+    import plistlib
+
+    autostart.set_enabled(True)
+    agent = macos / "Library" / "LaunchAgents" / "io.github.xatta-trone.papernym.plist"
+    data = plistlib.loads(agent.read_bytes())
+    assert data["ProgramArguments"] == ["/opt/my venv/bin/python", "-m", "papernym.gui"]
+    assert data["RunAtLoad"] and data["Label"] == autostart.MAC_LABEL and autostart.is_enabled()
+    assert not (macos / ".config" / "autostart").exists()  # no Linux file on macOS
+    autostart.set_enabled(False)
+    assert not agent.exists() and not autostart.is_enabled()
+
+
+def test_macos_app_launcher_is_written_and_removed(macos):
+    import plistlib
+
+    assert autostart.install_menu_entry()
+    app = macos / "Applications" / "PaperNym.app" / "Contents"
+    info = plistlib.loads((app / "Info.plist").read_bytes())
+    assert info["CFBundleExecutable"] == "PaperNym" and info["CFBundleName"] == "PaperNym"
+    script = (app / "MacOS" / "PaperNym").read_text(encoding="utf-8")
+    assert script.startswith("#!/bin/sh\n")
+    assert "exec '/opt/my venv/bin/python' -m papernym.gui --show \"$@\"" in script
+    icon = (app / "Resources" / "PaperNym.icns").read_bytes()
+    assert icon[:4] == b"icns" and int.from_bytes(icon[4:8], "big") == len(icon) and icon[8:12] == b"ic10"
+    if os.name != "nt":  # Windows cannot set the executable bit
+        assert (app / "MacOS" / "PaperNym").stat().st_mode & 0o777 == 0o755
+        assert not autostart.install_menu_entry()  # unchanged: not rewritten
+    assert autostart.launcher_path() == macos / "Applications" / "PaperNym.app"
+    assert autostart.remove_menu_entry() and not app.parent.exists()
+    assert not autostart.remove_menu_entry()
+
+
+def test_macos_terminal_launch_detaches(monkeypatch):
+    from types import SimpleNamespace
+
+    tty = SimpleNamespace(isatty=lambda: True)
+    monkeypatch.setattr(gui_app.sys, "stdin", tty)
+    monkeypatch.setattr(gui_app.sys, "platform", "darwin")
+    assert gui_app.should_detach(gui_app.parse_args([]))
+    assert not gui_app.should_detach(gui_app.parse_args(["--foreground"]))
+    assert not gui_app.should_detach(gui_app.parse_args(["--debug"]))
+    monkeypatch.setattr(gui_app.sys, "stdin", SimpleNamespace(isatty=lambda: False))
+    assert not gui_app.should_detach(gui_app.parse_args([]))  # Finder, Spotlight, login
+    monkeypatch.setattr(gui_app.sys, "stdin", tty)
+    for platform in ("linux", "win32"):
+        monkeypatch.setattr(gui_app.sys, "platform", platform)
+        assert not gui_app.should_detach(gui_app.parse_args([]))
+
+
+def test_detach_starts_a_new_session_and_exits(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(gui_app.subprocess, "Popen", lambda command, **kw: calls.append((command, kw)))
+    monkeypatch.setattr(gui_app.autostart, "launch_argv", lambda: ["python", "-m", "papernym.gui"])
+    monkeypatch.setattr(gui_app, "should_detach", lambda args: True)
+    assert gui_app.main(["--show"]) == 0
+    command, kw = calls[0]
+    assert command == ["python", "-m", "papernym.gui", "--show"]
+    assert kw["start_new_session"] and kw["stdin"] == gui_app.subprocess.DEVNULL
+    assert "background" in capsys.readouterr().out
 
 
 def test_closing_the_window_hides_it_when_there_is_a_tray(qapp, make_ctl, monkeypatch):
