@@ -611,7 +611,7 @@ build step. Development and manual testing happen this way; packaging comes late
 |---|---|
 | `--sandbox` | Safe trial mode: uses a fresh temporary settings folder and a temporary copy of `sample_pdfs/` as the only watched folder. Nothing real is touched. Says "SANDBOX" in the window title |
 | `--show` | Open the main window at start instead of hiding in the tray |
-| `--debug` | Log to the console at debug level |
+| `--debug` | Log to the console at debug level (the terminal it was started from; a new console window if there is none) |
 
 `papernym-gui --sandbox --show --debug` is the standard way to try a UI change.
 
@@ -638,7 +638,7 @@ Left-click (double-click on Windows) opens the main window.
 | Tab | Contents |
 |---|---|
 | **Activity** | Live list, newest first: time, old name, new name, source, status. Row actions: Open file, Show in folder, Undo, Refresh metadata. Filter by status. "Scan now" button with a progress bar |
-| **Needs attention** | Files with status `check`, `unknown`, `pending`, `unreadable`. For each: the reason, and actions: Enter DOI, Edit details (title, author, year), Retry now, Ignore (never ask again) |
+| **Needs attention** | Files with status `check`, `unknown`, `pending`, `unreadable`. For each: the reason, and actions: Enter DOI, Edit details (title, author, year), Retry now, Ignore (never ask again). Ignore records the file as hand-named (status `ok`, no paper), the same as an unticked file in a preview |
 | **Folders** | Watched folders with a subfolders toggle and a reachable/unreachable indicator; Add, Remove. Exclude patterns list |
 | **Naming** | Preset dropdown listing the fixed presets plus **Custom**. Choosing a preset shows its template read-only. Choosing Custom reveals an editable template field with clickable token buttons, where the user can also type fixed text, and a word-separator choice. Below: title length; year mode. A **live preview** on three sample papers updates as the user types. Invalid templates show the error inline and cannot be saved |
 | **Sources** | OpenAlex key field with a "Get a free key" link and a **Test** button; optional Semantic Scholar key; email; "Search by title" switch with a one-line privacy explanation; "Test all sources" button showing PASS/FAIL per service |

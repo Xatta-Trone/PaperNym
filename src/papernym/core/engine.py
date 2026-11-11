@@ -298,10 +298,13 @@ class Engine:
         self._event("scan_started", Path("."), f"scanning {len(files)} PDFs", total=len(files))
         batch = self._batch()
         self._planned.clear()
-        for index, path in enumerate(files, 1):
-            result = self.process(path, retry=True, batch=batch, dry_run=dry_run)
-            counts[result.status] += 1
-            self._event("scan_progress", path, f"{index}/{len(files)}", done=index, total=len(files))
+        try:
+            for index, path in enumerate(files, 1):
+                result = self.process(path, retry=True, batch=batch, dry_run=dry_run)
+                counts[result.status] += 1
+                self._event("scan_progress", path, f"{index}/{len(files)}", done=index, total=len(files))
+        finally:
+            self._planned.clear()  # previewed names must not block later real renames
         removed = 0 if dry_run else self.prune(reachable)
         counts["pruned"] = removed
         counts["total"] = len(files)
@@ -311,6 +314,12 @@ class Engine:
     def reformat(self, *, dry_run: bool = False, include_manual: bool = False) -> dict[str, int]:
         """Render saved paper records with the current template."""
         self._planned.clear()
+        try:
+            return self._reformat(dry_run, include_manual)
+        finally:
+            self._planned.clear()
+
+    def _reformat(self, dry_run: bool, include_manual: bool) -> dict[str, int]:
         counts = {"preview": 0, "ok": 0, "check": 0, "skipped": 0}
         batch = self._batch()
         rows = self.db.conn.execute("SELECT * FROM files WHERE status IN ('ok','check')").fetchall()
@@ -357,6 +366,25 @@ class Engine:
         if not rows:
             return {"undone": 0, "skipped": 0}
         chosen = rows[:last] if last is not None else [row for row in rows if row["batch"] == rows[0]["batch"]]
+        return self._undo_rows(chosen)
+
+    def undo_ids(self, ids) -> dict[str, int]:
+        """Undo specific history rows (a row or a whole batch), newest first."""
+        ids = [int(value) for value in ids]
+        if not ids:
+            return {"undone": 0, "skipped": 0}
+        marks = ",".join("?" for _ in ids)
+        rows = self.db.conn.execute(f"SELECT * FROM history WHERE undone=0 AND id IN ({marks}) "
+                                    "ORDER BY id DESC", ids).fetchall()
+        return self._undo_rows(rows)
+
+    def undo_path(self, path: str | Path) -> dict[str, int]:
+        """Undo the newest rename that produced ``path``."""
+        row = self.db.conn.execute("SELECT * FROM history WHERE undone=0 AND new_path=? ORDER BY id DESC",
+                                   (str(path),)).fetchone()
+        return self._undo_rows([row] if row else [])
+
+    def _undo_rows(self, chosen) -> dict[str, int]:
         counts = {"undone": 0, "skipped": 0}
         for history in chosen:
             old = Path(history["old_path"])
@@ -409,6 +437,20 @@ class Engine:
             match = PaperMatch("title:" + normal_title(clean_title), meta)
         return self._rename(path, fingerprint(path), match, 0, source=match.meta["source"],
                             given_name=row["given_name"])
+
+    def keep_name(self, path: str | Path) -> ProcessResult:
+        """Treat a PDF as hand-named: never renamed or asked about again.
+
+        Used for "Ignore" in Needs attention and for unticked files in a preview.
+        """
+        path = Path(path)
+        if not path.is_file():
+            raise ValueError("keep_name requires an existing PDF")
+        prior = self.db.get_file(path)
+        self.db.put_file(self._row(path, fingerprint(path), "ok", None, path.name,
+                                   prior["attempts"] if prior else 0))
+        self._event("skipped", path, "name kept; PaperNym will leave this file alone")
+        return ProcessResult("ok", path, "name kept")
 
     def refresh(self, path: str | Path) -> ProcessResult:
         """Re-query one known PDF, preserving its name if services fail."""

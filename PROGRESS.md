@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M4 complete; awaiting owner to start M5
-- **Next task:** M5 `papernym-gui` launches from source (`--sandbox`, `--show`, `--debug`)
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 189 passed
+- **Current milestone:** M5 built; waiting for the owner's manual checklist pass on Windows 11
+- **Next task:** Owner runs `docs/M5_MANUAL_CHECKLIST.md`; then M6 `scripts/build_windows.py`
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 205 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -74,18 +74,18 @@ Rules:
 - [x] Local end-to-end check: real `scan` on a temporary copy of `sample_pdfs/` with `PAPERNYM_HOME` set to a temporary folder; log old and new names
 
 ### M5 Tray app (priority 1)
-- [ ] `papernym-gui` launches from source in `.venv` (editable install with the `gui` extra); options `--sandbox`, `--show`, `--debug`
-- [ ] App start, single instance, tray icon with states, tray menu
-- [ ] Worker thread running the watcher; core events delivered as Qt signals
-- [ ] Main window and Activity tab
-- [ ] Folders tab (with exclude list)
-- [ ] Naming tab: preset dropdown, Custom template editor, live preview, validation messages
-- [ ] "Apply to existing files?" flow with preview
-- [ ] Sources tab with Test buttons and the title-search switch
-- [ ] Needs attention tab with manual fix
-- [ ] History tab with undo and CSV export
-- [ ] General tab; notifications; outage and rejected-key banners
-- [ ] First-run welcome with dry-run confirmation
+- [x] `papernym-gui` launches from source in `.venv` (editable install with the `gui` extra); options `--sandbox`, `--show`, `--debug`
+- [x] App start, single instance, tray icon with states, tray menu
+- [x] Worker thread running the watcher; core events delivered as Qt signals
+- [x] Main window and Activity tab
+- [x] Folders tab (with exclude list)
+- [x] Naming tab: preset dropdown, Custom template editor, live preview, validation messages
+- [x] "Apply to existing files?" flow with preview
+- [x] Sources tab with Test buttons and the title-search switch
+- [x] Needs attention tab with manual fix
+- [x] History tab with undo and CSV export
+- [x] General tab; notifications; outage and rejected-key banners
+- [x] First-run welcome with dry-run confirmation
 - [ ] Manual checklist for SPEC section 12 passes on Windows 11
 
 ### M6 Windows exe
@@ -437,3 +437,13 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 189 passed (2 new). Manual: dry run, scan, `undo --last 2`, a bad folder and a `--no-color` dry run in a Windows PowerShell terminal tab, with a temp `PAPERNYM_HOME` and a temp copy of sample_pdfs/; no stray escape codes appeared.
 - Note: the owner ran `papernym scan .` from `F:\papernym` (with the trial `PAPERNYM_HOME`), which renamed the files inside `sample_pdfs/`. They were restored afterwards; `sample_pdfs/` again holds the 11 original names, and no real `%APPDATA%\PaperNym` folder exists.
 - Next: Await the owner's instruction to begin M5 (tray app).
+
+### 2026-11-10  M5  Tray application
+- Done: Built the PySide6 tray app, runnable from source with `papernym-gui [--sandbox] [--show] [--debug]` (same as `python -m papernym.gui`). A worker `QThread` owns the database, engine and watcher; the UI sends it jobs and receives core events and results as Qt signals, so the UI thread never touches PaperNym files or the network. Tray icon with five states (watching, paused, working animated during a scan, attention, error) plus a text tooltip; the SPEC menu (Open, Pause/Resume, Scan now, Recent renames, Undo last rename, Needs attention (N), Settings, Quit). Single instance through a per-settings-folder `QLocalServer`; a second launch brings the window forward. Main window with Activity, Needs attention, Folders, Naming, Sources, History, General tabs; outage and rejected-key banners; batched notifications; first-run welcome (folders, format with preview, optional OpenAlex key) followed by a dry-run preview with checkboxes; "Apply to N existing files?" with a hand-renamed checkbox after naming changes; add-folder flow with PDF count, reference-manager warning and Preview first. Start at login writes the HKCU Run key (or a Linux autostart file); disabled in sandbox. Tray icons were cropped from the supplied sheet by `scripts/make_tray_icons.py` into `src/papernym/gui/icons/` (package data).
+- Core changes: `Engine.keep_name` (Ignore and unticked preview files: recorded as hand-named), `Engine.undo_ids` / `undo_path` (undo a History row, a batch, or an Activity row), `core/apitest.py` (shared by `papernym test-apis` and the Sources tab), `core/logsetup.py` (shared log file), `core/autostart.py`, `config.with_env`. Fixed an engine bug: names planned during a dry run were kept afterwards, so a later real rename in the same process got `_dup` endings; `scan` and `reformat` now clear plans when they finish (regression test added). The CLI never hit it because each command is a new process.
+- Files: `src/papernym/gui/{app,worker,window,tabs,dialogs,common}.py`, `src/papernym/gui/icons/*`, `src/papernym/core/{engine,config,apitest,logsetup,autostart}.py`, `src/papernym/cli.py`, `scripts/make_tray_icons.py`, `pyproject.toml`, `tests/test_gui.py`, `tests/test_engine.py`, `tests/EDGE_CASE_MATRIX.md`, `docs/M5_MANUAL_CHECKLIST.md`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 205 passed (16 new: 15 GUI with offscreen Qt, fake HTTP and a fake observer; 1 engine). Offscreen walkthrough with the real sample copies and live services: sandbox first run -> welcome (format author_year_title) -> preview of 11 with one unticked -> 10 renamed as `Author_Year_Title`, the unticked file kept; tab screenshots checked for layout. Real launch: `papernym-gui --sandbox --show --debug` started, the window titled `PaperNym  [SANDBOX]`, debug log printed in the launching terminal.
+- Problems found and fixed during the walkthrough: History showed live batches as "all undone" (Qt returned a copy of the stored id list); the first-run preview and renames used the old default format instead of the chosen one (the preview and the confirmed renames now run with the candidate settings, all in one worker job so the watcher cannot scan in between); `--debug` printed nothing because pip's windowed launcher has no console (it now attaches to the nearest ancestor console, else opens one); Activity rows wrapped onto two lines.
+- Decisions: Ignore uses the existing `ok` status with no paper rather than a new status (recorded in SPEC section 12). "Check for updates" is shown disabled until the M6 release exists. "Get a free key" links to `https://openalex.org/settings/api` (not verified live). Start at login is implemented now (M6 keeps its own checkbox for the installed exe path).
+- Not done: the manual checklist (`docs/M5_MANUAL_CHECKLIST.md`) needs the owner on Windows 11: real tray icon and menu, toasts, Explorer selection, keyboard pass.
+- Next: Owner runs the checklist; fix anything found; then M6.

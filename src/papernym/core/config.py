@@ -109,8 +109,12 @@ def load_config(home: str | Path | None = None, *, apply_env: bool = True) -> di
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"cannot read {path}: {exc}") from exc
     result = validate_config(raw)
-    if not apply_env:
-        return result
+    return with_env(result) if apply_env else result
+
+
+def with_env(config: dict) -> dict:
+    """Validated copy with environment API keys applied (in memory only)."""
+    result = validate_config(config)
     for variable, key in (("OPENALEX_API_KEY", "openalex_key"), ("S2_API_KEY", "s2_key")):
         if variable in os.environ:
             result[key] = os.environ[variable]

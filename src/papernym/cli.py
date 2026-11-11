@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import logging.handlers
 import os
 import re
 import sys
@@ -18,8 +17,9 @@ from .core.config import (ConfigError, add_folder, load_config, save_config, set
                           _within)
 from .core.db import Database, DatabaseError
 from .core.identify import (ARXIV_SOURCES, DOI_SOURCES, TITLE_SOURCES, Identifier,
-                            normal_title, title_hit_ok, title_in_text, titles_match)
+                            title_hit_ok, title_in_text)
 from .core.lock import LockBusyError, WriterLock
+from .core.logsetup import setup_file_log
 from .core.naming import PRESETS, TemplateError, render_preset, validate_template
 from .core.pdfread import ARXIV_FILE_RE, ARXIV_RE, PdfReadError, find_dois, read_pdf
 from .core.sources.http import HttpClient, NetError
@@ -145,28 +145,6 @@ def scan_summary(counts: dict) -> str:
         if counts.get(key):
             parts.append(f"{counts[key]} {label}")
     return "Summary: " + ", ".join(parts)
-
-
-def _setup_log(home: Path):
-    target = os.path.abspath(home / "logs" / "papernym.log")
-    for handler in list(log.handlers):
-        if getattr(handler, "_papernym", False):
-            if handler.baseFilename == target:
-                return
-            log.removeHandler(handler)
-            handler.close()
-    try:
-        (home / "logs").mkdir(parents=True, exist_ok=True)
-        handler = logging.handlers.RotatingFileHandler(home / "logs" / "papernym.log",
-                                                       maxBytes=1_000_000, backupCount=4,
-                                                       encoding="utf-8")
-    except OSError:
-        return
-    handler._papernym = True
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-    log.addHandler(handler)
-    log.setLevel(logging.INFO)
-    log.propagate = False
 
 
 class Context:
@@ -568,68 +546,27 @@ def cmd_status(ctx: Context) -> int:
 
 # Diagnostics ---------------------------------------------------------------------
 
-TEST_DOI = "10.1038/nature16961"
-TEST_TITLE = "Mastering the game of Go with deep neural networks and tree search"
-TEST_EXPECT = ("Silver", 2016)
-TEST_ARXIV = "1706.03762"
-TEST_ARXIV_DOI = "10.48550/arXiv.1706.03762"
-TEST_ARXIV_EXPECT = ("Vaswani", 2017)
-
-
 def cmd_test_apis(ctx: Context) -> int:
-    from .core.sources import arxiv, crossref, doiorg, openalex, semanticscholar
+    from .core.apitest import run_checks
 
     config = load_config(ctx.home)
     http_get = ctx.http_get or HttpClient(config).get
-    checks = [
-        ("Crossref          DOI lookup", crossref.doi_lookup, TEST_DOI, TEST_EXPECT, False, False),
-        ("Crossref          title search", crossref.title_search, TEST_TITLE, TEST_EXPECT, False, True),
-        ("doi.org           DOI lookup", doiorg.doi_lookup, TEST_DOI, TEST_EXPECT, False, False),
-        ("doi.org           DataCite DOI", doiorg.doi_lookup, TEST_ARXIV_DOI, TEST_ARXIV_EXPECT, False, False),
-        ("OpenAlex          DOI lookup", openalex.doi_lookup, TEST_DOI, TEST_EXPECT, True, False),
-        ("OpenAlex          title search", openalex.title_search, TEST_TITLE, TEST_EXPECT, True, True),
-        ("Semantic Scholar  DOI lookup", semanticscholar.doi_lookup, TEST_DOI, TEST_EXPECT, False, False),
-        ("Semantic Scholar  arXiv lookup", semanticscholar.arxiv_lookup, TEST_ARXIV, TEST_ARXIV_EXPECT, False, False),
-        ("Semantic Scholar  title search", semanticscholar.title_search, TEST_TITLE, TEST_EXPECT, False, True),
-        ("arXiv             ID lookup", arxiv.arxiv_lookup, TEST_ARXIV, TEST_ARXIV_EXPECT, False, False),
-    ]
     ctx.out.line(f"Settings folder: {ctx.home}")
     ctx.out.line(f"OpenAlex key: {'set' if config['openalex_key'] else 'not set'}   "
                  f"Semantic Scholar key: {'set' if config['s2_key'] else 'not set'}   "
                  f"Email: {config['email'] or 'not set'}")
-    tally = {"PASS": 0, "FAIL": 0, "SKIP": 0}
-    for label, function, value, (author, year), needs_key, is_list in checks:
-        if needs_key and not config["openalex_key"]:
-            status, detail = "SKIP", "no OpenAlex key (papernym set-key openalex KEY)"
-        else:
-            started = time.monotonic()
-            try:
-                result = function(value, config, http_get)
-                if is_list:
-                    result = next((item for item in result or [] if titles_match(item["title"], value)), None)
-                if not result:
-                    status, detail = "FAIL", "reachable, but the test paper was not found"
-                else:
-                    first = (result["authors"] or ["?"])[0]
-                    good = (normal_title(first) == normal_title(author)
-                            and result["year"] is not None and abs(result["year"] - year) <= 1)
-                    status = "PASS" if good else "FAIL"
-                    detail = (f"{result['year']} / {first} / {result['title'][:45]}  "
-                              f"({time.monotonic() - started:.1f}s)" + ("" if good else "  <- unexpected values"))
-            except NetError as exc:
-                hint = ""
-                if exc.status in (401, 403):
-                    hint = "  <- key rejected or access blocked"
-                elif exc.status == 429:
-                    hint = "  <- rate limited; try again in a minute"
-                status, detail = "FAIL", f"{exc}{hint}"
-            except Exception as exc:  # unexpected response shape from a live service
-                status, detail = "FAIL", f"{type(exc).__name__}: {exc}"
-        tally[status] += 1
-        prefix = {"PASS": "ok", "FAIL": "warn", "SKIP": "skip"}[status]
-        ctx.out.line(f"{status}  {label}  {detail}", prefix)
+
+    def show(result):
+        detail = result.detail
+        if result.status == "SKIP":
+            detail += " (papernym set-key openalex KEY)"
+        prefix = {"PASS": "ok", "FAIL": "warn", "SKIP": "skip"}[result.status]
+        ctx.out.line(f"{result.status}  {result.label}  {detail}", prefix)
+
+    results = run_checks(config, http_get, on_result=show)
+    tally = {key: sum(r.status == key for r in results) for key in ("PASS", "FAIL", "SKIP")}
     ctx.out.line(f"Summary: {tally['PASS']} passed, {tally['FAIL']} failed, {tally['SKIP']} skipped")
-    if tally["FAIL"] and tally["FAIL"] == len(checks) - tally["SKIP"]:
+    if tally["FAIL"] and tally["FAIL"] == len(results) - tally["SKIP"]:
         ctx.out.line("everything failed: check your internet connection, VPN, firewall or proxy", "warn")
     elif tally["FAIL"]:
         ctx.out.line("PaperNym still works: it falls back to the sources that passed", "warn")
@@ -817,7 +754,7 @@ def main(argv: list[str] | None = None, *, stdout=None, stderr=None,
     out = Output(stdout, stderr, color=False if args.no_color else None)
     ctx = Context(args, out, http_get)
     if args.command in ("scan", "watch", "reformat", "undo", "fix"):
-        _setup_log(ctx.home)
+        setup_file_log(ctx.home)
     try:
         return args.func(ctx)
     except (CliError, ConfigError, DatabaseError) as exc:

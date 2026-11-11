@@ -1,7 +1,7 @@
 # SPEC section 14 test map
 
-All tests below use temporary files, fake metadata services, or generated PDFs. GUI-specific
-behavior in row 25 is scheduled for M5; the single-writer part is covered here.
+All tests below use temporary files, fake metadata services, or generated PDFs. Row 25's GUI
+part (a second launch focuses the first) is covered by the M5 tray tests.
 
 | Row | Behavior | Test |
 |---|---|---|
@@ -29,7 +29,7 @@ behavior in row 25 is scheduled for M5; the single-writer part is covered here.
 | 22 | Undo | `test_undo_latest_batch_and_last_n`; `test_undo_does_not_overwrite_and_reformat_restores_given_name` |
 | 23 | Unplugged folder | `test_unplugged_folder_returns_and_retry_timer` |
 | 24 | Overlapping folders | `test_folder_overlap_rejected_or_merged` |
-| 25 | Two writers | `test_only_one_writer_and_release` |
+| 25 | Two writers; second GUI launch focuses the first | `test_only_one_writer_and_release`, `test_gui.py::test_lock_held_elsewhere_is_fatal`, `test_gui.py::test_single_instance_signal` |
 | 26 | Unreadable database | `test_backup_once_per_day_and_restore`; `test_corruption_without_backup_stops` |
 | 27 | Deleted file | `test_scan_emits_progress_and_prunes_only_reachable_folders` |
 | 28 | Draft/privacy exclusions | `test_excludes_file_globs_and_folder_names_before_reading`; `test_title_search_privacy_switch_sends_no_titles` |

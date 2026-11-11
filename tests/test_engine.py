@@ -370,3 +370,16 @@ def test_settled_file_skips_stability_wait(tmp_path):
     fresh = tmp_path / "fresh.pdf"
     fresh.write_bytes(b"")
     assert not stable_file(fresh, timeout=0.05, pause=0.01)
+
+
+def test_dry_run_plans_do_not_block_later_real_renames(tmp_path):
+    folder = tmp_path / "papers"
+    folder.mkdir()
+    path = folder / "download.pdf"
+    path.write_bytes(b"PDF")
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, FakeIdentifier(outcome()))
+        worker.scan([{"path": str(folder), "recursive": True}], dry_run=True)
+        worker.reformat(dry_run=True)
+        result = worker.process(path, retry=True)
+        assert result.path.name == "2025_Smith_A_useful_research_article.pdf"

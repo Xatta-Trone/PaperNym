@@ -1,0 +1,764 @@
+"""The main window's tabs: Activity, Needs attention, Folders, Naming, Sources, History, General."""
+
+from __future__ import annotations
+
+import copy
+import datetime as dt
+import os
+import threading
+from pathlib import Path
+
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QFormLayout,
+                               QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QInputDialog,
+                               QLabel, QLineEdit, QListWidget, QMessageBox, QProgressBar,
+                               QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QTreeWidget,
+                               QTreeWidgetItem, QVBoxLayout, QWidget)
+
+from .. import __version__
+from ..core.apitest import run_checks
+from ..core.config import ConfigError, validate_config
+from ..core.logsetup import log_path
+from ..core.naming import PRESETS, TOKENS, TemplateError, build_name, validate_template
+from ..core.sources.http import HttpClient
+from .common import (EVENT_STATUS, FILE_STATUS, REASONS, SAMPLE_PAPERS, open_path, short,
+                     show_in_folder)
+from .dialogs import DetailsDialog, PreviewDialog
+
+NO_TITLE = {"author_year", "author_year_journal"}
+SEPARATORS = (("Underscore  _", "_"), ("Space", " "), ("Hyphen  -", "-"), ("None (words run together)", ""))
+
+
+def _table(headers: list[str], name: str) -> QTableWidget:
+    table = QTableWidget(0, len(headers))
+    table.setHorizontalHeaderLabels(headers)
+    table.setSelectionBehavior(QAbstractItemView.SelectRows)
+    table.setSelectionMode(QAbstractItemView.SingleSelection)
+    table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+    table.verticalHeader().setVisible(False)
+    table.horizontalHeader().setStretchLastSection(True)
+    table.setWordWrap(False)
+    table.setTextElideMode(Qt.ElideMiddle)
+    table.setAccessibleName(name)
+    return table
+
+
+def _item(text: str, data=None) -> QTableWidgetItem:
+    item = QTableWidgetItem(text)
+    item.setToolTip(text)
+    if data is not None:
+        item.setData(Qt.UserRole, data)
+    return item
+
+
+def _time(stamp: str | None = None) -> str:
+    if not stamp:
+        return dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        return dt.datetime.fromisoformat(stamp).astimezone().strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return stamp
+
+
+class _Background(QObject):
+    """Run a function on a plain thread (network checks that must not hold up the worker)."""
+
+    finished = Signal(object)
+
+    def run(self, function):
+        threading.Thread(target=lambda: self.finished.emit(function()), daemon=True).start()
+
+
+# Activity -------------------------------------------------------------------------
+
+class ActivityTab(QWidget):
+    SHOWN = ("renamed", "needs_check", "unidentified", "undo", "busy", "skipped")
+
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        top = QHBoxLayout()
+        self.scan_button = QPushButton("&Scan now")
+        self.scan_button.clicked.connect(ctl.scan_now)
+        top.addWidget(self.scan_button)
+        self.progress = QProgressBar()
+        self.progress.setTextVisible(True)
+        self.progress.setFormat("Idle")
+        self.progress.setValue(0)
+        top.addWidget(self.progress, 1)
+        top.addWidget(QLabel("&Filter:"))
+        self.filter = QComboBox()
+        self.filter.addItem("All", None)
+        for key in self.SHOWN:
+            self.filter.addItem(EVENT_STATUS[key], EVENT_STATUS[key])
+        self.filter.currentIndexChanged.connect(self._apply_filter)
+        top.itemAt(top.count() - 1).widget().setBuddy(self.filter)
+        top.addWidget(self.filter)
+        layout.addLayout(top)
+        self.table = _table(["Time", "Status", "Source", "Old name", "New name"], "Activity")
+        self.table.setColumnWidth(0, 125)
+        self.table.setColumnWidth(1, 105)
+        self.table.setColumnWidth(2, 100)
+        self.table.setColumnWidth(3, 330)
+        self.table.doubleClicked.connect(lambda *_: self._open())
+        layout.addWidget(self.table)
+        actions = QHBoxLayout()
+        for text, slot in (("&Open file", self._open), ("Show in &folder", self._reveal),
+                           ("&Undo", self._undo), ("&Refresh metadata", self._refresh)):
+            button = QPushButton(text)
+            button.clicked.connect(slot)
+            actions.addWidget(button)
+        actions.addStretch(1)
+        layout.addLayout(actions)
+        ctl.worker.event.connect(self.on_event)
+
+    def load_history(self, rows: list[dict]):
+        for row in reversed(rows):
+            status = "Undone" if row["undone"] else ("Check" if row["status"] == "check" else "Renamed")
+            current = row["old_path"] if row["undone"] else row["new_path"]
+            self._add(_time(row["time"]), short(row["old_path"]), short(row["new_path"]),
+                      row["source"], status, current)
+
+    def _add(self, when, old, new, source, status, path):
+        self.table.insertRow(0)
+        for column, text in enumerate((when, status, source, old, new)):
+            self.table.setItem(0, column, _item(text, path if column == 0 else None))
+        self._apply_filter()
+
+    def on_event(self, event: dict):
+        kind = event["type"]
+        if kind == "scan_started":
+            total = event.get("total", 0)
+            self.progress.setRange(0, max(total, 1))
+            self.progress.setValue(0)
+            self.progress.setFormat(f"Scanning 0 / {total}")
+            self.scan_button.setEnabled(False)
+        elif kind == "scan_progress":
+            self.progress.setValue(event["done"])
+            self.progress.setFormat(f"Scanning {event['done']} / {event['total']}")
+        elif kind == "scan_finished":
+            counts = event.get("counts", {})
+            self.progress.setValue(self.progress.maximum())
+            self.progress.setFormat(f"Last scan: {counts.get('total', 0)} PDFs, {counts.get('ok', 0)} named, "
+                                    f"{counts.get('check', 0)} to check, {counts.get('unknown', 0)} not identified")
+            self.scan_button.setEnabled(True)
+        elif kind in self.SHOWN:
+            old = short(event.get("old_path") or event["path"])
+            new = short(event.get("new_path", "")) if kind in ("renamed", "needs_check", "undo") else event["message"]
+            self._add(_time(), old, new, event.get("source", ""), EVENT_STATUS[kind],
+                      event.get("new_path") or event["path"])
+
+    def _apply_filter(self):
+        wanted = self.filter.currentData()
+        for row in range(self.table.rowCount()):
+            status = self.table.item(row, 1).text()
+            self.table.setRowHidden(row, wanted is not None and status != wanted)
+
+    def _path(self) -> str | None:
+        rows = self.table.selectionModel().selectedRows()
+        return self.table.item(rows[0].row(), 0).data(Qt.UserRole) if rows else None
+
+    def _open(self):
+        path = self._path()
+        if path:
+            open_path(path)
+
+    def _reveal(self):
+        path = self._path()
+        if path:
+            show_in_folder(path)
+
+    def _undo(self):
+        path = self._path()
+        if path:
+            self.ctl.worker.call(lambda w: w.engine.undo_path(path), self.ctl.after_undo)
+
+    def _refresh(self):
+        path = self._path()
+        if path:
+            self.ctl.status(f"Refreshing metadata for {short(path)}...")
+            self.ctl.worker.call(lambda w: w.engine.refresh(path),
+                                 lambda result: self.ctl.status(f"{short(path)}: {result.message or result.status}"),
+                                 self.ctl.error)
+
+
+# Needs attention ------------------------------------------------------------------
+
+class AttentionTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        self.summary = QLabel("Nothing needs attention.")
+        layout.addWidget(self.summary)
+        self.table = _table(["File", "Status", "Reason", "Folder"], "Files needing attention")
+        self.table.setColumnWidth(0, 320)
+        self.table.setColumnWidth(1, 150)
+        self.table.setColumnWidth(2, 360)
+        self.table.itemSelectionChanged.connect(self._update_buttons)
+        layout.addWidget(self.table)
+        row = QHBoxLayout()
+        self.doi_button = QPushButton("Enter &DOI...")
+        self.edit_button = QPushButton("&Edit details...")
+        self.retry_button = QPushButton("&Retry now")
+        self.ignore_button = QPushButton("&Ignore (never ask again)")
+        self.open_button = QPushButton("&Open file")
+        for button, slot in ((self.doi_button, self._doi), (self.edit_button, self._edit),
+                             (self.retry_button, self._retry), (self.ignore_button, self._ignore),
+                             (self.open_button, self._open)):
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        row.addStretch(1)
+        layout.addLayout(row)
+        ctl.attention_changed.connect(self.show_rows)
+        self._update_buttons()
+
+    def show_rows(self, rows: list[dict]):
+        self.table.setRowCount(0)
+        for row in rows:
+            index = self.table.rowCount()
+            self.table.insertRow(index)
+            path = row["display_path"]
+            missing = "" if os.path.exists(path) else " (file missing)"
+            values = (short(path) + missing, FILE_STATUS.get(row["status"], row["status"]),
+                      REASONS.get(row["status"], ""), os.path.dirname(path))
+            for column, text in enumerate(values):
+                self.table.setItem(index, column, _item(text, (path, row["status"]) if column == 0 else None))
+        self.summary.setText(f"{len(rows)} file(s) need attention." if rows else "Nothing needs attention.")
+        self._update_buttons()
+
+    def _current(self):
+        rows = self.table.selectionModel().selectedRows()
+        return self.table.item(rows[0].row(), 0).data(Qt.UserRole) if rows else None
+
+    def _update_buttons(self):
+        current = self._current()
+        fixable = bool(current) and current[1] in ("check", "unknown")
+        self.doi_button.setEnabled(fixable)
+        self.edit_button.setEnabled(fixable)
+        for button in (self.retry_button, self.ignore_button, self.open_button):
+            button.setEnabled(bool(current))
+
+    def _done(self, result):
+        self.ctl.status(f"{short(str(result.path))}: {result.message or result.status}")
+        self.ctl.refresh_attention()
+
+    def _doi(self):
+        path, _ = self._current()
+        doi, ok = QInputDialog.getText(self, "Enter DOI", f"DOI for {short(path)} (e.g. 10.1016/j.aap.2025.108048):")
+        if ok and doi.strip():
+            doi = doi.strip()
+            for prefix in ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "doi:"):
+                if doi.lower().startswith(prefix):
+                    doi = doi[len(prefix):]
+            self.ctl.worker.call(lambda w: w.engine.fix(path, doi=doi), self._done, self.ctl.error)
+
+    def _edit(self):
+        path, _ = self._current()
+        dialog = DetailsDialog(short(path), self)
+        if dialog.exec():
+            values = dialog.values()
+            self.ctl.worker.call(lambda w: w.engine.fix(path, **values), self._done, self.ctl.error)
+
+    def _retry(self):
+        path, _ = self._current()
+        self.ctl.worker.call(lambda w: w.retry(path), self._done, self.ctl.error)
+
+    def _ignore(self):
+        path, _ = self._current()
+        self.ctl.worker.call(lambda w: w.engine.keep_name(path), self._done, self.ctl.error)
+
+    def _open(self):
+        path, _ = self._current()
+        open_path(path)
+
+
+# Folders --------------------------------------------------------------------------
+
+class FoldersTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        box = QGroupBox("Watched folders")
+        inner = QVBoxLayout(box)
+        self.table = _table(["Folder", "Subfolders", "State"], "Watched folders")
+        self.table.setColumnWidth(0, 520)
+        self.table.itemChanged.connect(self._toggled)
+        inner.addWidget(self.table)
+        row = QHBoxLayout()
+        for text, slot in (("&Add folder...", self._add), ("&Remove", self._remove),
+                           ("Show in &Explorer", self._reveal), ("Re&check", self.refresh_states)):
+            button = QPushButton(text)
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        row.addStretch(1)
+        inner.addLayout(row)
+        layout.addWidget(box, 2)
+        box = QGroupBox("Exclude patterns (file names like *draft*, or folder names ending with /)")
+        inner = QVBoxLayout(box)
+        self.excludes = QListWidget()
+        self.excludes.setAccessibleName("Exclude patterns")
+        inner.addWidget(self.excludes)
+        row = QHBoxLayout()
+        self.pattern = QLineEdit()
+        self.pattern.setPlaceholderText("New pattern, e.g. *_review* or Drafts/")
+        self.pattern.returnPressed.connect(self._add_pattern)
+        add = QPushButton("Add &pattern")
+        add.clicked.connect(self._add_pattern)
+        remove = QPushButton("Remove pa&ttern")
+        remove.clicked.connect(self._remove_pattern)
+        row.addWidget(self.pattern, 1)
+        row.addWidget(add)
+        row.addWidget(remove)
+        inner.addLayout(row)
+        layout.addWidget(box, 1)
+        self.states: dict[str, bool] = {}
+        ctl.config_changed.connect(self.show_config)
+        ctl.worker.event.connect(self._on_event)
+
+    def show_config(self, config: dict):
+        self.table.blockSignals(True)
+        self.table.setRowCount(0)
+        for folder in config["folders"]:
+            index = self.table.rowCount()
+            self.table.insertRow(index)
+            self.table.setItem(index, 0, _item(folder["path"], folder["path"]))
+            toggle = QTableWidgetItem("include")
+            toggle.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            toggle.setCheckState(Qt.Checked if folder["recursive"] else Qt.Unchecked)
+            self.table.setItem(index, 1, toggle)
+            state = self.states.get(folder["path"])
+            self.table.setItem(index, 2, _item("Checking..." if state is None else
+                                               ("Reachable" if state else "UNREACHABLE")))
+        self.table.blockSignals(False)
+        self.excludes.clear()
+        self.excludes.addItems(config["exclude"])
+
+    def refresh_states(self):
+        def done(states):
+            self.states = states
+            self.show_config(self.ctl.config)
+            self.ctl.folder_states_changed(states)
+
+        self.ctl.worker.call(lambda w: w.folder_states(), done)
+
+    def _on_event(self, event):
+        if event["type"] in ("folder_attached", "folder_unavailable", "settings_reloaded"):
+            self.refresh_states()
+
+    def _toggled(self, item: QTableWidgetItem):
+        if item.column() != 1:
+            return
+        path = self.table.item(item.row(), 0).data(Qt.UserRole)
+        recursive = item.checkState() == Qt.Checked
+        config = copy.deepcopy(self.ctl.config)
+        config["folders"] = [folder for folder in config["folders"] if folder["path"] != path]
+        self.ctl.worker.call(lambda w: w.validate_new_folder(config, path, recursive),
+                             lambda info: self.ctl.save_settings(info["config"]),
+                             lambda message: (self.ctl.error(message), self.show_config(self.ctl.config)))
+
+    def _add(self):
+        path = QFileDialog.getExistingDirectory(self, "Choose a folder of papers")
+        if path:
+            self.ctl.add_folder_flow(path, recursive=True)
+
+    def _selected_path(self):
+        rows = self.table.selectionModel().selectedRows()
+        return self.table.item(rows[0].row(), 0).data(Qt.UserRole) if rows else None
+
+    def _remove(self):
+        path = self._selected_path()
+        if path and QMessageBox.question(self, "Remove folder",
+                                         f"Stop watching {path}?\nFiles there keep their names.") == QMessageBox.Yes:
+            config = copy.deepcopy(self.ctl.config)
+            config["folders"] = [folder for folder in config["folders"] if folder["path"] != path]
+            self.ctl.save_settings(config)
+
+    def _reveal(self):
+        path = self._selected_path()
+        if path:
+            open_path(path)
+
+    def _add_pattern(self):
+        pattern = self.pattern.text().strip()
+        if not pattern or pattern in self.ctl.config["exclude"]:
+            return
+        config = copy.deepcopy(self.ctl.config)
+        config["exclude"].append(pattern)
+        self.ctl.save_settings(config)
+        self.pattern.clear()
+
+    def _remove_pattern(self):
+        item = self.excludes.currentItem()
+        if item:
+            config = copy.deepcopy(self.ctl.config)
+            config["exclude"].remove(item.text())
+            self.ctl.save_settings(config)
+
+
+# Naming ---------------------------------------------------------------------------
+
+class NamingTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self.preset = QComboBox()
+        for name in PRESETS:
+            label = name + ("  (default)" if name == "year_author_title" else "")
+            label += "  - no title, names may collide" if name in NO_TITLE else ""
+            self.preset.addItem(label, name)
+        self.preset.addItem("Custom", None)
+        form.addRow("Name &format", self.preset)
+        self.template = QLineEdit()
+        self.template.setAccessibleName("Template")
+        form.addRow("&Template", self.template)
+        tokens = QHBoxLayout()
+        self.token_buttons = []
+        for token in ("year", "author", "authors", "title", "shorttitle", "journal"):
+            button = QPushButton("{" + token + "}")
+            button.setToolTip(f"Insert the {token} token at the cursor")
+            button.clicked.connect(lambda _=False, t=token: self._insert(t))
+            tokens.addWidget(button)
+            self.token_buttons.append(button)
+        tokens.addStretch(1)
+        self.tokens_row = QWidget()
+        self.tokens_row.setLayout(tokens)
+        form.addRow("", self.tokens_row)
+        self.separator = QComboBox()
+        for label, value in SEPARATORS:
+            self.separator.addItem(label, value)
+        form.addRow("&Word separator", self.separator)
+        self.title_limit = QSpinBox()
+        self.title_limit.setRange(0, 250)
+        self.title_limit.setSpecialValueText("As long as fits")
+        self.title_limit.setSuffix(" characters")
+        form.addRow("Title &length", self.title_limit)
+        self.year = QComboBox()
+        self.year.addItem("Citation year (journal volume)", "citation")
+        self.year.addItem("First-online year", "online")
+        form.addRow("&Year", self.year)
+        layout.addLayout(form)
+        self.message = QLabel()
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        layout.addWidget(QLabel("Preview:"))
+        self.preview = QLabel()
+        self.preview.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.preview.setAccessibleName("Name preview")
+        layout.addWidget(self.preview)
+        layout.addStretch(1)
+        row = QHBoxLayout()
+        self.save_button = QPushButton("&Save naming")
+        self.save_button.clicked.connect(self._save)
+        self.revert_button = QPushButton("Re&vert")
+        self.revert_button.clicked.connect(lambda: self.show_config(self.ctl.config))
+        row.addStretch(1)
+        row.addWidget(self.revert_button)
+        row.addWidget(self.save_button)
+        layout.addLayout(row)
+        layout.addWidget(QLabel("Saving never renames existing files by itself; you are asked first."))
+        for signal in (self.preset.currentIndexChanged, self.template.textChanged,
+                       self.separator.currentIndexChanged, self.title_limit.valueChanged,
+                       self.year.currentIndexChanged):
+            signal.connect(self._changed)
+        ctl.config_changed.connect(self.show_config)
+
+    def show_config(self, config: dict):
+        widgets = (self.preset, self.template, self.separator, self.title_limit, self.year)
+        for widget in widgets:
+            widget.blockSignals(True)
+        fmt = config["format"]
+        preset = fmt if fmt in PRESETS else next(
+            (name for name, (template, sep) in PRESETS.items()
+             if template == fmt and sep == config["word_sep"] and name != "citekey"), None)
+        self.preset.setCurrentIndex(self.preset.findData(preset))
+        self.template.setText(PRESETS[preset][0] if preset else fmt)
+        self.separator.setCurrentIndex(max(0, self.separator.findData(
+            PRESETS[preset][1] if preset else config["word_sep"])))
+        self.title_limit.setValue(config["title_limit"])
+        self.year.setCurrentIndex(self.year.findData(config["year"]))
+        for widget in widgets:
+            widget.blockSignals(False)
+        self._changed()
+
+    def _insert(self, token: str):
+        self.template.insert("{" + token + "}")
+        self.template.setFocus()
+
+    def _changed(self, *_):
+        preset = self.preset.currentData()
+        custom = preset is None
+        if not custom:
+            self.template.blockSignals(True)
+            self.template.setText(PRESETS[preset][0])
+            self.template.blockSignals(False)
+            self.separator.blockSignals(True)
+            self.separator.setCurrentIndex(self.separator.findData(PRESETS[preset][1]))
+            self.separator.blockSignals(False)
+        self.template.setReadOnly(not custom)
+        self.tokens_row.setEnabled(custom)
+        self.separator.setEnabled(custom)
+        try:
+            warnings = [] if not custom else validate_template(self.template.text())
+            lines = [build_name(paper, preset or self.template.text(), ".",
+                                word_sep=self.separator.currentData(), year_mode=self.year.currentData(),
+                                title_limit=self.title_limit.value()) for paper in SAMPLE_PAPERS]
+        except (TemplateError, ValueError) as exc:
+            self.message.setText(f"Error: {exc}. This template cannot be saved.")
+            self.preview.setText("")
+            self.save_button.setEnabled(False)
+            return
+        if preset in NO_TITLE:
+            warnings.append("This format has no title; names may collide and get _b, _c endings.")
+        self.message.setText("Warning: " + " ".join(warnings) if warnings else "")
+        self.preview.setText("\n".join(lines))
+        self.save_button.setEnabled(self._pending() != self._current())
+
+    def _current(self) -> tuple:
+        config = self.ctl.config
+        fmt = config["format"]
+        same = next((name for name, (template, sep) in PRESETS.items()
+                     if template == fmt and sep == config["word_sep"] and name != "citekey"), None)
+        fmt = same or fmt
+        sep = PRESETS[fmt][1] if fmt in PRESETS else config["word_sep"]
+        return (fmt, sep, config["title_limit"], config["year"])
+
+    def _pending(self) -> tuple:
+        preset = self.preset.currentData()
+        fmt = preset or self.template.text()
+        sep = PRESETS[preset][1] if preset else self.separator.currentData()
+        return (fmt, sep, self.title_limit.value(), self.year.currentData())
+
+    def _save(self):
+        config = copy.deepcopy(self.ctl.config)
+        config["format"], config["word_sep"], config["title_limit"], config["year"] = self._pending()
+        try:
+            validate_config(config)
+        except ConfigError as exc:
+            self.message.setText(f"Error: {exc}")
+            return
+        self.ctl.save_settings(config, lambda _: self.ctl.offer_reformat())
+
+
+# Sources --------------------------------------------------------------------------
+
+class SourcesTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        self.background = _Background()
+        self.background.finished.connect(self._show_results)
+        layout = QVBoxLayout(self)
+        self.banner = QLabel()
+        self.banner.setWordWrap(True)
+        self.banner.setObjectName("banner")
+        self.banner.hide()
+        layout.addWidget(self.banner)
+        form = QFormLayout()
+        self.openalex = QLineEdit()
+        self.openalex.setPlaceholderText("optional")
+        row = QHBoxLayout()
+        row.addWidget(self.openalex, 1)
+        test = QPushButton("&Test")
+        test.clicked.connect(lambda: self._test({"openalex"}))
+        row.addWidget(test)
+        link = QLabel('<a href="https://openalex.org/settings/api">Get a free key</a>')
+        link.setOpenExternalLinks(True)
+        row.addWidget(link)
+        form.addRow("&OpenAlex key", row)
+        self.s2 = QLineEdit()
+        self.s2.setPlaceholderText("optional")
+        row = QHBoxLayout()
+        row.addWidget(self.s2, 1)
+        test = QPushButton("T&est")
+        test.clicked.connect(lambda: self._test({"semanticscholar"}))
+        row.addWidget(test)
+        form.addRow("Semantic &Scholar key", row)
+        self.email = QLineEdit()
+        self.email.setPlaceholderText("you@example.org (sent to Crossref for faster, polite access)")
+        form.addRow("&Email", self.email)
+        self.title_search = QCheckBox("Search by &title when a PDF has no DOI or arXiv id")
+        form.addRow("", self.title_search)
+        form.addRow("", QLabel("Privacy: when on, a paper's title may be sent to Crossref, OpenAlex and "
+                               "Semantic Scholar. When off, only DOIs and arXiv ids are looked up."))
+        form.addRow("", QLabel("Keys are stored in plain text in the settings folder."))
+        layout.addLayout(form)
+        row = QHBoxLayout()
+        save = QPushButton("Sa&ve sources")
+        save.clicked.connect(self._save)
+        self.test_all = QPushButton("Test &all sources")
+        self.test_all.clicked.connect(lambda: self._test(None))
+        row.addWidget(self.test_all)
+        row.addStretch(1)
+        row.addWidget(save)
+        layout.addLayout(row)
+        self.results = _table(["Result", "Check", "Details"], "Source test results")
+        self.results.setColumnWidth(0, 70)
+        self.results.setColumnWidth(1, 240)
+        layout.addWidget(self.results)
+        ctl.config_changed.connect(self.show_config)
+
+    def show_config(self, config: dict):
+        self.openalex.setText(config["openalex_key"])
+        self.s2.setText(config["s2_key"])
+        self.email.setText(config["email"])
+        self.title_search.setChecked(config["title_search"])
+
+    def _edited(self) -> dict:
+        config = copy.deepcopy(self.ctl.config)
+        config.update({"openalex_key": self.openalex.text().strip(), "s2_key": self.s2.text().strip(),
+                       "email": self.email.text().strip(), "title_search": self.title_search.isChecked()})
+        return config
+
+    def _save(self):
+        self.ctl.save_settings(self._edited(), lambda _: self.ctl.status("Sources saved."))
+
+    def show_rejected(self, message: str | None):
+        self.banner.setText(f"Key problem: {message}. Other sources keep working." if message else "")
+        self.banner.setVisible(bool(message))
+
+    def _test(self, services):
+        config = self._edited()
+        http_get = self.ctl.http_get or HttpClient(config).get
+        self.test_all.setEnabled(False)
+        self.results.setRowCount(0)
+        self.results.insertRow(0)
+        self.results.setItem(0, 0, _item("..."))
+        self.results.setItem(0, 2, _item("Testing; this takes a few seconds..."))
+        self.background.run(lambda: run_checks(config, http_get, services))
+
+    def _show_results(self, results):
+        self.test_all.setEnabled(True)
+        self.results.setRowCount(0)
+        for result in results:
+            index = self.results.rowCount()
+            self.results.insertRow(index)
+            for column, text in enumerate((result.status, " ".join(result.label.split()), result.detail)):
+                self.results.setItem(index, column, _item(text))
+        if any(result.status == "FAIL" and "key rejected" in result.detail for result in results):
+            self.show_rejected("a key was rejected by its service")
+
+
+# History --------------------------------------------------------------------------
+
+class HistoryTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["When / old name", "New name", "Source", "Status"])
+        self.tree.setColumnWidth(0, 380)
+        self.tree.setColumnWidth(1, 460)
+        self.tree.setAccessibleName("Rename history grouped by batch")
+        layout.addWidget(self.tree)
+        row = QHBoxLayout()
+        for text, slot in (("&Undo selected (row or whole batch)", self._undo),
+                           ("&Export CSV...", self._export), ("&Reload", self.reload)):
+            button = QPushButton(text)
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        row.addStretch(1)
+        layout.addLayout(row)
+        ctl.history_changed.connect(self.reload)
+
+    def reload(self):
+        self.ctl.worker.call(lambda w: w.recent_history(5000), self.show_rows)
+
+    def show_rows(self, rows: list[dict]):
+        self.tree.clear()
+        batches: dict[str, QTreeWidgetItem] = {}
+        live: dict[str, list[int]] = {}
+        for row in rows:  # newest first
+            parent = batches.get(row["batch"])
+            if parent is None:
+                parent = QTreeWidgetItem([f"{_time(row['time'])}  batch", "", "", ""])
+                batches[row["batch"]] = parent
+                live[row["batch"]] = []
+                self.tree.addTopLevelItem(parent)
+            status = "undone" if row["undone"] else row["status"]
+            child = QTreeWidgetItem([short(row["old_path"]), short(row["new_path"]), row["source"], status])
+            child.setToolTip(0, row["old_path"])
+            child.setToolTip(1, row["new_path"])
+            child.setData(0, Qt.UserRole, [row["id"]] if not row["undone"] else [])
+            parent.addChild(child)
+            if not row["undone"]:
+                live[row["batch"]].append(row["id"])
+        for batch, parent in batches.items():
+            ids = live[batch]
+            parent.setData(0, Qt.UserRole, ids)
+            parent.setText(0, f"{parent.text(0)}: {parent.childCount()} rename(s)"
+                              + ("" if ids else ", all undone"))
+
+    def _undo(self):
+        item = self.tree.currentItem()
+        ids = item.data(0, Qt.UserRole) if item else []
+        if not ids:
+            self.ctl.status("Select a rename or a batch that has not been undone.")
+            return
+        self.ctl.worker.call(lambda w: w.engine.undo_ids(ids), self.ctl.after_undo, self.ctl.error)
+
+    def _export(self):
+        target, _ = QFileDialog.getSaveFileName(self, "Export history", "papernym-history.csv", "CSV (*.csv)")
+        if target:
+            self.ctl.worker.call(lambda w: w.export_history(target),
+                                 lambda count: self.ctl.status(f"Exported {count} rows to {target}"),
+                                 self.ctl.error)
+
+
+# General --------------------------------------------------------------------------
+
+class GeneralTab(QWidget):
+    def __init__(self, ctl):
+        super().__init__()
+        self.ctl = ctl
+        layout = QVBoxLayout(self)
+        self.login = QCheckBox("Start PaperNym when I &log in (minimised to the tray)")
+        self.notify = QCheckBox("Show a &notification when papers are renamed")
+        self.paused = QCheckBox("&Pause watching")
+        for box in (self.login, self.notify, self.paused):
+            box.toggled.connect(self._save)
+            layout.addWidget(box)
+        if ctl.sandbox:
+            self.login.setEnabled(False)
+            self.login.setToolTip("Disabled in sandbox mode")
+        grid = QGridLayout()
+        buttons = (("Open &settings folder", lambda: open_path(ctl.home)),
+                   ("Open &log", self._open_log))
+        for column, (text, slot) in enumerate(buttons):
+            button = QPushButton(text)
+            button.clicked.connect(slot)
+            grid.addWidget(button, 0, column)
+        self.update_button = QPushButton("Check for &updates")
+        self.update_button.setEnabled(False)
+        self.update_button.setToolTip("Available with the Windows release")
+        grid.addWidget(self.update_button, 0, 2)
+        layout.addLayout(grid)
+        layout.addWidget(QLabel(f"PaperNym {__version__}"))
+        layout.addWidget(QLabel(f"Settings folder: {ctl.home}"))
+        layout.addStretch(1)
+        ctl.config_changed.connect(self.show_config)
+
+    def show_config(self, config: dict):
+        for box, key in ((self.login, "start_at_login"), (self.notify, "notify_on_rename"),
+                         (self.paused, "paused")):
+            box.blockSignals(True)
+            box.setChecked(config[key])
+            box.blockSignals(False)
+
+    def _save(self):
+        config = copy.deepcopy(self.ctl.config)
+        login_changed = config["start_at_login"] != self.login.isChecked()
+        config.update({"start_at_login": self.login.isChecked(),
+                       "notify_on_rename": self.notify.isChecked(), "paused": self.paused.isChecked()})
+        if login_changed:
+            self.ctl.set_start_at_login(self.login.isChecked())
+        self.ctl.save_settings(config)
+
+    def _open_log(self):
+        path = log_path(self.ctl.home)
+        open_path(path if path.exists() else path.parent)
