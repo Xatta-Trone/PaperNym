@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M0
-- **Next task:** move prototype scripts into `prototype/`
-- **Last test run:** `git check-ignore .venv sample_pdfs` — both ignored (pass)
+- **Next task:** create `pyproject.toml`
+- **Last test run:** `git diff --cached --summary` — four exact renames (pass)
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -23,7 +23,7 @@ Rules:
 ### M0 Project setup
 - [x] Create `.venv` in the project root; confirm `python --version` is 3.10+
 - [x] `git init`; `.gitignore` (`.venv`, `sample_pdfs/`, `__pycache__`, `build`, `dist`, `*.egg-info`)
-- [ ] Move `paper_renamer.py`, `test_apis.py`, `compare_sources.py`, `compare_pdf_libs.py` into `prototype/` (read-only reference); leave `pdf_metadata.py` alone
+- [x] Move `paper_renamer.py`, `test_apis.py`, `compare_sources.py`, `compare_pdf_libs.py` into `prototype/` (read-only reference); leave `pdf_metadata.py` alone
 - [ ] `pyproject.toml` (name `papernym`, deps `pypdfium2`, `requests`, `watchdog`; extra `gui = ["PySide6"]`; dev extra `pytest`)
 - [ ] Package skeleton `src/papernym/` per SPEC section 3; `tests/`
 - [ ] Editable install into `.venv`; `pytest` passes with one placeholder test
@@ -139,3 +139,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `git check-ignore .venv sample_pdfs` — pass; both paths are ignored.
 - Decisions: Track the existing specification and reference files in the first commit so later moves are visible in history.
 - Next: Move the four prototype scripts into `prototype/` without editing them.
+
+### 2026-11-10  M0  Archive prototype scripts
+- Done: Moved all four prototype scripts to `prototype/` without changing their contents; left `pdf_metadata.py` in place.
+- Files: `prototype/paper_renamer.py`, `prototype/test_apis.py`, `prototype/compare_sources.py`, `prototype/compare_pdf_libs.py`, `PROGRESS.md`.
+- Tests: `git diff --cached --summary` — pass; git reports four 100% renames. `git diff -- pdf_metadata.py` — empty.
+- Decisions: Keep prototype code solely as reference, as required by the specification.
+- Next: Add `pyproject.toml` with the specified dependencies and entry points.
