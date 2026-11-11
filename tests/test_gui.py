@@ -557,3 +557,26 @@ def test_naming_tab_has_no_title_length(qapp, make_ctl):
     assert not naming.findChildren(QSpinBox)
     assert not any("length" in label.text().lower() for label in naming.findChildren(QLabel))
 
+
+def test_installer_start_at_login_choice_is_adopted_once(qapp, make_ctl, monkeypatch):
+    answers = [False]
+    monkeypatch.setattr(autostart, "take_installer_choice", lambda: answers.pop() if answers else None)
+    calls = []
+    monkeypatch.setattr(autostart, "set_enabled", calls.append)
+    monkeypatch.setattr(autostart, "is_enabled", lambda: True)
+    config = default_config()
+    config["start_at_login"] = True
+    ctl = make_ctl(config=config)
+    ctl.interactive = True  # what a normal start does in on_ready
+    ctl.adopt_installer_login()
+    assert wait(qapp, lambda: load_config(ctl.home)["start_at_login"] is False)
+    assert ctl.login_default is False
+    ctl.sync_start_at_login()
+    assert calls == [False]  # the Run key follows the installer's answer, not the old setting
+    ctl.adopt_installer_login()  # the marker is read only once
+    assert ctl.config["start_at_login"] is False
+
+
+def test_welcome_wizard_login_default_from_installer(qapp):
+    assert WelcomeWizard([], login_default=False).start_at_login() is False
+

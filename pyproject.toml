@@ -25,6 +25,8 @@ Releases = "https://github.com/Xatta-Trone/papernym/releases"
 [project.optional-dependencies]
 gui = ["PySide6>=6.5"]
 dev = ["pytest"]
+# Windows app build (scripts/build_windows.py); Inno Setup 6 is installed separately
+build = ["pyinstaller>=6.10"]
 
 [project.scripts]
 papernym = "papernym.cli:main"

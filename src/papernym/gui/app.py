@@ -79,6 +79,7 @@ class Controller(QObject):
         self._refresh = QTimer(self, singleShot=True, interval=300, timeout=self._refresh_lists)
         self._toast_timer = QTimer(self, singleShot=True, interval=TOAST_QUIET_MS, timeout=self._flush_toast)
         self.update_info = None
+        self.login_default = True  # the welcome wizard's Start-at-login tick (the installer may change it)
         self._update_checking = False
         self._update_result = UpdateRelay(self)
         self._update_result.finished.connect(self._update_checked)
@@ -177,6 +178,8 @@ class Controller(QObject):
 
     # Worker signals ---------------------------------------------------------------
     def on_ready(self):
+        if self.interactive and not self.sandbox:
+            self.adopt_installer_login()
         if self.interactive and not self.sandbox and not self.first_run:
             self.sync_start_at_login()
         self.status("Watching." if self.config["folders"] else "Add a folder to start.")
@@ -387,6 +390,22 @@ class Controller(QObject):
             self.status("Nothing to undo.")
         self._refresh.start()
 
+    def adopt_installer_login(self):
+        """Take over the installer's Start-at-login answer (once) as the app setting."""
+        try:
+            choice = autostart.take_installer_choice()
+        except OSError as exc:
+            log.warning("cannot read the installer's start-at-login choice: %s", exc)
+            return
+        if choice is None:
+            return
+        self.login_default = choice
+        if not self.first_run and choice != self.config["start_at_login"]:
+            config = copy.deepcopy(self.config)
+            config["start_at_login"] = choice
+            self.config = config
+            self.save_settings(config)
+
     def sync_start_at_login(self):
         """Keep the login entry matching the setting (and the current program path)."""
         try:
@@ -507,7 +526,8 @@ class Controller(QObject):
             self.status("Naming saved; existing files keep their names.")
 
     def run_welcome(self):
-        wizard = WelcomeWizard(self.welcome_folders, self.window, allow_login=not self.sandbox)
+        wizard = WelcomeWizard(self.welcome_folders, self.window, allow_login=not self.sandbox,
+                               login_default=self.login_default)
         if not wizard.exec():
             self.save_settings(self.config, lambda _: self.status("Add a folder to start."))
             return
@@ -551,6 +571,14 @@ class Controller(QObject):
 
 # Start-up -------------------------------------------------------------------------
 
+def sample_folder() -> Path | None:
+    """sample_pdfs/ beside the source tree; for a built exe, PAPERNYM_SAMPLES or ./sample_pdfs."""
+    for folder in (os.environ.get("PAPERNYM_SAMPLES"), REPO_SAMPLES, Path.cwd() / "sample_pdfs"):
+        if folder and Path(folder).is_dir():
+            return Path(folder)
+    return None
+
+
 def make_sandbox() -> tuple[Path, Path, int]:
     """Fresh temporary settings folder plus a temporary copy of sample_pdfs/."""
     root = Path(tempfile.mkdtemp(prefix="papernym-sandbox-"))
@@ -558,8 +586,9 @@ def make_sandbox() -> tuple[Path, Path, int]:
     home.mkdir()
     papers.mkdir()
     count = 0
-    if REPO_SAMPLES.is_dir():
-        for pdf in sorted(REPO_SAMPLES.glob("*.pdf")):
+    samples = sample_folder()
+    if samples is not None:
+        for pdf in sorted(samples.glob("*.pdf")):
             shutil.copy2(pdf, papers / pdf.name)
             count += 1
     return home, papers, count

@@ -13,10 +13,10 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M5 built; waiting for the owner's manual checklist pass on Windows 11
-- **Next task:** Owner runs `docs/M5_MANUAL_CHECKLIST.md`; then M6 `scripts/build_windows.py`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 233 passed
-- **Open questions for the owner:** none
+- **Current milestone:** M6 built locally (exe, installer, release workflow); M5 manual checklist still open
+- **Next task:** Owner: M5 checklist, push the repo to `Xatta-Trone/papernym`, choose a code-signing route; then the clean-account install test and the first tagged release
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 239 passed
+- **Open questions for the owner:** code signing (Defender blocked an unsigned trial install that set start at login; see docs/BUILDING.md)
 
 ## Milestones
 
@@ -89,14 +89,15 @@ Rules:
 - [ ] Manual checklist for SPEC section 12 passes on Windows 11
 
 ### M6 Windows exe
-- [ ] `scripts/build_windows.py`: one command for the PyInstaller one-folder build (windowed, icon) into `dist/`
-- [ ] Locally built `PaperNym.exe` runs with `--sandbox --show`
-- [ ] Inno Setup installer (per-user, Start-menu shortcut, uninstaller), built by the same script
-- [ ] Start at login
-- [ ] Update check against the latest release
-- [ ] `THIRD_PARTY_LICENSES` file
-- [ ] Install, run, uninstall on a clean Windows account
-- [ ] GitHub Actions release workflow: on a `v*` tag, run tests, call the build script, attach the installer to a GitHub Release
+- [x] `scripts/build_windows.py`: one command for the PyInstaller one-folder build (windowed, icon) into `dist/`
+- [x] Locally built `PaperNym.exe` runs with `--sandbox --show`
+- [x] Inno Setup installer (per-user, Start-menu shortcut, uninstaller), built by the same script
+- [x] Start at login
+- [x] Update check against the latest release
+- [x] `THIRD_PARTY_LICENSES` file
+- [ ] Install, run, uninstall on a clean Windows account (silent trial on the owner's account: install and uninstall verified; launching the installed copy was blocked by Defender, see the work log)
+- [ ] GitHub Actions release workflow: on a `v*` tag, run tests, call the build script, attach the installer to a GitHub Release (written; not run yet because the repository is not on GitHub)
+- [ ] Code signing (SPEC 15.1); the build signs when `SIGN_PFX` / `SIGN_PFX_BASE64` is provided
 
 ### M7 PyPI (priority 2)
 - [ ] README (install, quick start, commands, privacy note), LICENSE (MIT), CHANGELOG
@@ -479,4 +480,16 @@ Newest entry at the bottom. Use this shape:
 - Done: Folders tab: double-clicking a folder row opens it in Explorer (not on the Subfolders checkbox column; an unreachable folder gets a status message). Title length removed everywhere: the Naming tab control, the CLI `set-title-length` command and the `show` line, and the `title_limit` setting. Titles are always as long as the file-name budget allows. Old `config.json` files with `title_limit` load normally and the key is dropped on the next save.
 - Files: `src/papernym/core/{config,engine}.py`, `src/papernym/cli.py`, `src/papernym/gui/tabs.py`, `tests/{test_cli,test_config,test_gui}.py`, `SPEC.md`, `PROGRESS.md`.
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 233 passed (3 new; 3 title-length cases removed with the setting).
+
+### 2026-11-11  Docs  Move Markdown files into docs/
+- Done: `SPEC.md`, `PROGRESS.md` and `SYSTEM_REQUIREMENTS.md` moved from the repository root to `docs/` (git history kept with `git mv`). No code referred to them. Read `docs/PROGRESS.md` first in each session.
+
+### 2026-11-11  M6  Windows exe, installer and release workflow
+- Done: `scripts/build_windows.py` (one command): writes Windows version info, runs PyInstaller with `packaging/papernym.spec`, checks both programs exist, copies `LICENSE.txt`, generates `THIRD_PARTY_LICENSES.txt` from the bundled packages' metadata, smoke-tests the CLI against a temporary settings folder, signs if `SIGN_PFX` is set, then runs Inno Setup (`packaging/papernym.iss`) and writes a SHA256 file. One folder holds two programs: `PaperNym.exe` (windowed) and `papernym-cli.exe` (console). Windows names are case-insensitive, so `papernym.exe` would collide with `PaperNym.exe`; the installer adds `bin\papernym.cmd` to PATH instead. Installer: per-user (`%LOCALAPPDATA%\Programs\PaperNym`, no admin), Start-menu shortcut, optional desktop icon, Start at login (Run key plus a one-time `HKCU\Software\PaperNym\InstallerStartAtLogin` marker that the app adopts into its settings, so its own sync does not undo the choice), Add to PATH, launch after install; the uninstaller stops the app, removes the Run value (also when the app set it), PATH entry and shortcuts, and asks before removing settings, history and keys (default No). `.github/workflows/windows-release.yml`, modelled on the owner's avista-dl-desktop workflow: `v*` tag or manual run, tag must equal `__version__`, tests, `choco install innosetup`, optional signing from secrets, the same build script, artifact upload, `gh release create/upload --clobber`. `pyproject.toml` gains a `build` extra (`pyinstaller`). The sandbox finds sample papers through `PAPERNYM_SAMPLES` or `./sample_pdfs` when frozen. `docs/BUILDING.md` explains build, installer and release.
+- Problems found and fixed: (1) the packaged GUI failed with "DLL load failed while importing QtCore": PyInstaller had bundled Anaconda's `icuuc.dll` (ICU 73), found through the user PATH, which shadowed the Windows one; the build now runs PyInstaller with a clean PATH and the spec drops stray ICU DLLs. (2) `keyring`'s Windows backend needed all of `win32ctypes` bundled. (3) Unused Qt parts (software OpenGL, virtual keyboard with Qt Quick/QML, Qt PDF, translations) dropped: 174 MB to 89 MB; installer 30 MB.
+- Checked for real: the packaged CLI renamed 3 sample copies with live lookups (temporary home, keyring off) and found Windows Credential Manager when allowed; the packaged GUI started in sandbox mode with a clean log. Silent trial install (owner approved) into `%TEMP%\PaperNym-trial-install` with Start at login and PATH: files, `papernym` shim (exit codes pass through), Run value, marker, shortcut all present; silent uninstall removed folder, Run value, `HKCU\Software\PaperNym`, the PATH entry (PATH identical to before) and the shortcut, and kept the settings folder.
+- Problem not solved: Microsoft Defender blocked starting the installed copy: `Behavior:Win32/Persistence.A!ml` (an unsigned new exe under `%TEMP%` registering itself at login). `dist\PaperNym\PaperNym.exe` still runs. Code signing is the real fix (SPEC 15.1 already requires it); `docs/BUILDING.md` lists options. Not retried, to avoid further alerts on the owner's machine.
+- Files: `scripts/build_windows.py`, `packaging/{papernym.spec,papernym.iss,papernym.cmd,launch_gui.py,launch_cli.py}`, `.github/workflows/windows-release.yml`, `src/papernym/core/autostart.py`, `src/papernym/gui/{app,dialogs}.py`, `tests/test_build_script.py`, `tests/test_gui.py`, `pyproject.toml`, `docs/BUILDING.md`, `docs/SPEC.md`, `docs/PROGRESS.md`. Inno Setup 6.7.3 installed for the owner's user with winget (approved).
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 239 passed (6 new).
+- Next: owner pushes to GitHub and picks a signing route; tag `v0.1.0` to run the workflow; clean-account install test with a signed build.
 

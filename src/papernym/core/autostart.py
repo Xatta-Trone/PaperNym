@@ -59,3 +59,28 @@ def set_enabled(enabled: bool) -> None:
                         f"Exec={launch_command()}\nX-GNOME-Autostart-enabled=true\n", encoding="utf-8")
     else:
         path.unlink(missing_ok=True)
+
+
+APP_KEY = r"Software\PaperNym"
+INSTALLER_VALUE = "InstallerStartAtLogin"
+
+
+def take_installer_choice() -> bool | None:
+    """The installer's "Start at login" answer, read once and then removed (Windows only).
+
+    The installer writes the Run key itself and leaves this marker (1 or 0), so the app can
+    adopt the choice into its settings instead of undoing it on the next start.
+    """
+    if os.name != "nt":
+        return None
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, APP_KEY, 0,
+                            winreg.KEY_READ | winreg.KEY_SET_VALUE) as key:
+            value, _ = winreg.QueryValueEx(key, INSTALLER_VALUE)
+            winreg.DeleteValue(key, INSTALLER_VALUE)
+    except OSError:
+        return None
+    return bool(value)
+

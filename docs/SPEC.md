@@ -785,6 +785,11 @@ is cloud-synced.
 - Inno Setup installer: per-user install (no admin rights), Start-menu shortcut, optional
   "start at login", uninstaller that leaves the settings folder unless the user ticks
   "remove my settings".
+- As built (see `docs/BUILDING.md`): the folder holds `PaperNym.exe` (windowed) and
+  `papernym-cli.exe` (console); the installer's optional "Add to PATH" adds `bin\papernym.cmd`
+  so `papernym` works in a terminal (Windows file names are case-insensitive, so the CLI cannot
+  be `papernym.exe` next to `PaperNym.exe`). The installer's start-at-login choice is left as a
+  one-time marker in `HKCU\Software\PaperNym` that the app adopts into its own setting.
 - Code-sign the executable and the installer. Unsigned builds trigger Windows SmartScreen
   warnings.
 - Update check (`core/updates.py`): 30 s after start and then every 24 h (and from About >
