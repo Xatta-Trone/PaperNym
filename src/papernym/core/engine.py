@@ -35,8 +35,15 @@ def fingerprint(path: Path) -> str:
     return digest.hexdigest()
 
 
-def stable_file(path: Path, timeout: float = 120, pause: float = 1.5) -> bool:
+def stable_file(path: Path, timeout: float = 120, pause: float = 1.5,
+                settled_after: float = 30) -> bool:
     """Wait for a nonempty file whose size remains unchanged for two checks."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return False
+    if stat.st_size > 0 and time.time() - stat.st_mtime > settled_after:
+        return True  # Untouched for a while: no writer is active, skip the wait.
     deadline = time.monotonic() + timeout
     previous = None
     while time.monotonic() < deadline:

@@ -131,7 +131,7 @@ Files: `config.json`, `papers.db`, `lock`, `logs/papernym.log` (rotating, 5 x 1 
 |---|---|
 | `folders` | Watched folders. `recursive` includes subfolders |
 | `exclude` | Glob patterns (file names) and folder names ending in `/`. Matching files are never read or renamed |
-| `format`, `word_sep` | Name template and the separator used between words inside a field (section 7) |
+| `format`, `word_sep` | Name template and the separator used between words inside a field (section 7). `format` may also be a fixed preset name such as `citekey`; a preset then sets its own separator |
 | `title_limit` | Max title characters; `0` = as long as the file-name budget allows |
 | `year` | `citation` (journal volume year, default) or `online` (first-online year) |
 | `title_search` | If `false`, titles are never sent to any service; only DOI and arXiv lookups run |

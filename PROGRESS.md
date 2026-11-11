@@ -13,9 +13,9 @@ Rules:
 
 ## Current state
 
-- **Current milestone:** M3 complete; awaiting owner to start M4
-- **Next task:** M4 CLI settings commands
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 151 passed
+- **Current milestone:** M4 complete; awaiting owner to start M5
+- **Next task:** M5 `papernym-gui` launches from source (`--sandbox`, `--show`, `--debug`)
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 184 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -66,12 +66,12 @@ Rules:
 - [x] Every non-UI row of SPEC section 14 has a passing test
 
 ### M4 Minimal CLI
-- [ ] `cli.py`: settings commands (`add-folder`, `remove-folder`, `exclude`, `set-*`, `formats`, `show`)
-- [ ] `cli.py`: `scan`, `watch`, `reformat`, `undo`, `fix`, `status`
-- [ ] `cli.py`: `test-apis`, `compare`
-- [ ] Output prefixes, exit codes, lock behaviour
-- [ ] CLI tests
-- [ ] Local end-to-end check: real `scan` on a temporary copy of `sample_pdfs/` with `PAPERNYM_HOME` set to a temporary folder; log old and new names
+- [x] `cli.py`: settings commands (`add-folder`, `remove-folder`, `exclude`, `set-*`, `formats`, `show`)
+- [x] `cli.py`: `scan`, `watch`, `reformat`, `undo`, `fix`, `status`
+- [x] `cli.py`: `test-apis`, `compare`
+- [x] Output prefixes, exit codes, lock behaviour
+- [x] CLI tests
+- [x] Local end-to-end check: real `scan` on a temporary copy of `sample_pdfs/` with `PAPERNYM_HOME` set to a temporary folder; log old and new names
 
 ### M5 Tray app (priority 1)
 - [ ] `papernym-gui` launches from source in `.venv` (editable install with the `gui` extra); options `--sandbox`, `--show`, `--debug`
@@ -403,3 +403,23 @@ Newest entry at the bottom. Use this shape:
 - Tests: `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-assets-test-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — 151 passed.
 - Decisions: Keep the supplied source and rendered artwork together for later tray and installer work; no milestone checkbox changed.
 - Next: Begin M4 CLI settings commands when the owner requests the next milestone.
+
+### 2026-11-10  M4  CLI commands, tests, and local end-to-end check
+- Done: Implemented every SPEC section 11 command in `cli.py` as a thin layer over config/engine/watcher: settings commands (`add-folder`, `remove-folder`, `exclude`, `set-key`, `set-email`, `formats`, `set-format` preset/custom, `set-title-length`, `set-year`, `set-title-search`, `show`); `scan`, `watch`, `reformat`, `undo`, `fix`, `status`; diagnostics `test-apis` and `compare`. Core events map to the `[ok] [check] [?] [busy] [skip] [warn] [preview] [undo]` prefixes with `->` between names; scans end with a `Summary:` line and say when no folders are configured. Exit codes: 0 success, 1 failure, 2 usage. Renaming commands take the writer lock and refuse with a clear message while the tray app or `watch` runs; dry runs, `status`, `show` and settings commands always work. Rename-type commands also write `logs/papernym.log` (rotating, 5 x 1 MB).
+- Files: `src/papernym/cli.py`, `src/papernym/core/config.py`, `src/papernym/core/engine.py`, `tests/test_cli.py`, `tests/test_config.py`, `tests/test_engine.py`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `$env:PAPERNYM_HOME = <temp>; .\.venv\Scripts\python.exe -m pytest -q` — 184 passed (33 new: 30 CLI, 2 config, 1 engine). A first run exposed the log handler staying bound to the first settings folder; it now rebinds when the folder changes.
+- Local end-to-end (live services, no API keys, `PAPERNYM_HOME` and the papers both in a temp folder, sample_pdfs/ only copied): `scan --dry-run` previewed 11/11; real `scan` renamed 11/11 (`Summary: 11 PDFs, 11 named`), none unidentified:
+  - `1-s2.0-S0001457517300842-main.pdf` -> `2019_Imprialou_Crash_data_quality_for_road_safety_research_Current_state_and_future_directions.pdf`
+  - `1-s2.0-S0001457525001344-main.pdf` -> `2025_Islam_Evaluating_crash_risk_factors_of_farm_equipment_vehicles_on_county_and_non-county_roads_using_interpretable_tabular_deep_learning_TabNet.pdf`
+  - `1-s2.0-S0957417426008080-main-2 (2).pdf` -> `2026_Bermudez_Supervised_clustering_using_SOM_for_severity-based_pattern_detection_in_urban_traffic_crashes.pdf`
+  - `1-s2.0-S0968090X25002256-main.pdf` -> `2025_Cao_Dry_bulk_terminal_operations_A_critical_review_of_models_and_optimization_methods.pdf`
+  - `1-s2.0-S0968090X25004322-main (1).pdf` -> `2026_Ling_A_review_of_knowledge_graph_construction_using_large_language_models_in_transportation_Problems_methods_and_challenges.pdf`
+  - `1-s2.0-S0968090X2600255X-main.pdf` -> `2026_Hu_A_review_of_learning-based_motion_planning_toward_a_data-driven_optimal_control_approach.pdf`
+  - `1-s2.0-S0968090X26005735-main.pdf` -> `2027_Li_Short-term_demand_forecasting_in_mobility-on-demand_systems_A_systematic_literature_review_and_research_agenda.pdf`
+  - `1-s2.0-S2213665726000394-main.pdf` -> `2026_Yan_Understanding_the_determinants_of_multi-vehicle_crash_types_at_ramp_terminals_insights_from_a_partially_constrained_temporal_modeling_approach.pdf`
+  - `97770f42-85cc-4285-b189-98a823efa6b1.pdf` -> `2024_Gao_Uncertainty-aware_probabilistic_graph_neural_networks_for_road-level_traffic_crash_prediction.pdf`
+  - `islam-et-al-2026-crash-risk-analysis-of-non-motorists-using-interpretable-tabular-deep-learning.pdf` -> `2026_Islam_Crash_Risk_Analysis_of_Non-Motorists_using_Interpretable_Tabular_Deep_Learning.pdf`
+  - `mohammadi-et-al-2026-lidar-based-pavement-marking-detection-for-construction-engineering-a-systematic-review-of-methods.pdf` -> `2026_Mohammadi_LiDAR-Based_Pavement_Marking_Detection_for_Construction_Engineering_A_Systematic_Review_of_Methods_and_Applications.pdf`
+  Then: `status` (11 named, nothing needs attention); `reformat --dry-run` with `authors_year_title_zotero` previewed 11 renames (e.g. `Islam et al - 2026 - Crash Risk Analysis ... .pdf`); `undo` restored all 11 original names; a re-scan left them alone (undone first-time renames count as hand-named, SPEC 9). `test-apis`: 8 PASS, 2 SKIP (no OpenAlex key), 0 FAIL. `watch` on an empty temp folder: a second `scan` was refused (exit 1) and `status` showed the watcher running; a sample copied in as `download.part` then renamed to `download.pdf` was renamed to `2024_Gao_Uncertainty-aware_...pdf` live.
+- Decisions: (1) `format` in config.json may hold a preset name (`citekey` needs its own capitalisation, which a plain template cannot express); `set-format PRESET` stores the name. Recorded in SPEC section 4. (2) `load_config(apply_env=False)` for settings commands so `OPENALEX_API_KEY`/`S2_API_KEY` are never written to disk. (3) `stable_file` skips the 1.5 s two-check wait for files untouched for 30 s (scans of large existing libraries were 1.5 s per file); fresh downloads still get the full check. (4) `fix` follows the spec (`--doi` only); edited-field fixes stay a GUI feature. (5) `test-apis` reports unexpected values as FAIL, so its output is strictly PASS/FAIL/SKIP.
+- Next: Await the owner's instruction to begin M5 (tray app).

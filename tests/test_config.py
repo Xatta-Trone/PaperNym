@@ -83,3 +83,16 @@ def test_reference_manager_warning_does_not_block(tmp_path):
     cfg = config.add_folder(config.default_config(), store, on_warning=warnings.append)
     assert cfg["folders"][0]["path"] == str(store.resolve())
     assert len(warnings) == 1
+
+
+def test_preset_name_is_a_valid_format(tmp_path):
+    settings = config.default_config()
+    settings["format"] = "citekey"
+    config.save_config(settings, tmp_path)
+    assert config.load_config(tmp_path)["format"] == "citekey"
+
+
+def test_load_without_environment_keys(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENALEX_API_KEY", "env-key")
+    assert config.load_config(tmp_path)["openalex_key"] == "env-key"
+    assert config.load_config(tmp_path, apply_env=False)["openalex_key"] == ""

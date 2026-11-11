@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-from .naming import TemplateError, validate_template
+from .naming import PRESETS, TemplateError, validate_template
 
 
 DEFAULTS = {
@@ -51,6 +51,8 @@ def default_config() -> dict:
 
 
 def _validate_template(template: str) -> None:
+    if template in PRESETS:
+        return  # A fixed preset stored by name (needed for citekey capitalisation).
     try:
         validate_template(template)
     except TemplateError as exc:
@@ -93,8 +95,12 @@ def validate_config(config: dict) -> dict:
     return result
 
 
-def load_config(home: str | Path | None = None) -> dict:
-    """Load settings, applying environment API keys in memory only."""
+def load_config(home: str | Path | None = None, *, apply_env: bool = True) -> dict:
+    """Load settings, applying environment API keys in memory only.
+
+    Callers that modify and save settings pass ``apply_env=False`` so environment
+    keys are never written to config.json.
+    """
     path = settings_dir(home) / "config.json"
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -103,6 +109,8 @@ def load_config(home: str | Path | None = None) -> dict:
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigError(f"cannot read {path}: {exc}") from exc
     result = validate_config(raw)
+    if not apply_env:
+        return result
     for variable, key in (("OPENALEX_API_KEY", "openalex_key"), ("S2_API_KEY", "s2_key")):
         if variable in os.environ:
             result[key] = os.environ[variable]

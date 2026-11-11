@@ -352,3 +352,21 @@ def test_refresh_updates_year_but_preserves_file_on_failed_lookup(tmp_path):
         updated = worker.refresh(named)
         assert updated.path.name.startswith("2027_Smith_")
         assert db.get_paper("doi:10.1/test")["year"] == 2027
+
+
+def test_settled_file_skips_stability_wait(tmp_path):
+    import os
+    import time as _time
+
+    from papernym.core.engine import stable_file
+
+    path = tmp_path / "old.pdf"
+    path.write_bytes(b"PDF")
+    old = _time.time() - 3600
+    os.utime(path, (old, old))
+    started = _time.monotonic()
+    assert stable_file(path, pause=5)
+    assert _time.monotonic() - started < 1
+    fresh = tmp_path / "fresh.pdf"
+    fresh.write_bytes(b"")
+    assert not stable_file(fresh, timeout=0.05, pause=0.01)
