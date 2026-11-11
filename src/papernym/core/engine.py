@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import fnmatch
 import hashlib
 import json
 import os
@@ -64,6 +65,16 @@ class Engine:
         event = {"type": kind, "path": str(path), "message": message}
         event.update(extra)
         self.on_event(event)
+
+    def excluded(self, path: Path) -> bool:
+        for pattern in self.config.get("exclude", []):
+            if pattern.endswith("/"):
+                folder_pattern = pattern[:-1]
+                if any(fnmatch.fnmatch(part, folder_pattern) for part in path.parent.parts):
+                    return True
+            elif fnmatch.fnmatch(path.name, pattern):
+                return True
+        return False
 
     @staticmethod
     def _stamp() -> str:
@@ -132,7 +143,8 @@ class Engine:
     def process(self, path: str | Path, *, retry: bool = False,
                 batch: str | None = None) -> ProcessResult:
         path = Path(path)
-        if path.suffix.lower() != ".pdf" or path.name.startswith((".", "~$")) or not path.is_file():
+        if (path.suffix.lower() != ".pdf" or path.name.startswith((".", "~$"))
+                or self.excluded(path) or not path.is_file()):
             return ProcessResult("skipped", path, "not an eligible PDF")
         prior = self.db.get_file(path)
         if prior and prior["status"] == "ok":

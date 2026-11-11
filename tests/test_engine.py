@@ -132,3 +132,21 @@ def test_annotated_file_and_copy_need_no_new_lookup(tmp_path):
         assert result.status == "ok"
         assert result.path.name.endswith("_dup2.pdf")
         assert fake.calls == 1
+
+
+def test_excludes_file_globs_and_folder_names_before_reading(tmp_path):
+    manuscript_dir = tmp_path / "Manuscripts"
+    manuscript_dir.mkdir()
+    paths = [tmp_path / "rough_draft.pdf", tmp_path / "paper_v2.pdf",
+             manuscript_dir / "final.pdf"]
+    for path in paths:
+        path.write_bytes(b"PDF")
+
+    def forbidden(_path):
+        raise AssertionError("excluded PDF was read")
+
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, FakeIdentifier(outcome()), read=forbidden)
+        for path in paths:
+            assert worker.process(path).status == "skipped"
+            assert db.get_file(path) is None

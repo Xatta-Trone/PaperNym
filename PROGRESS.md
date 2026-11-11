@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M3
-- **Next task:** exclude list
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 5 passed
+- **Next task:** scan progress events and pruning
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 6 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -54,7 +54,7 @@ Rules:
 ### M3 Core, part 3
 - [x] `core/engine.py`: per-file logic and all five statuses
 - [x] Hand-renamed, moved, annotated and copied files
-- [ ] Exclude list
+- [x] Exclude list
 - [ ] Scan with progress events; prune
 - [ ] Dry run (scan and reformat)
 - [ ] Reformat, including `include_manual`
@@ -326,3 +326,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 5 passed; a test fixture initially used identical bytes for two distinct cases and was corrected.
 - Decisions: Preserve `given_name` when a file moves so manual names remain protected; use an atomic database path relocation without adding a tool-rename history entry.
 - Next: Apply exclude patterns before reading files.
+
+### 2026-11-10  M3  Apply exclude list
+- Done: Skipped configured filename globs and folder-name patterns before opening PDFs.
+- Files: `src/papernym/core/engine.py`, `tests/test_engine.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_engine.py` — 6 passed; excluded temporary PDFs were never read or stored.
+- Decisions: Match folder exclusions against path components and file exclusions against the basename.
+- Next: Scan watched folders with progress events and prune missing file rows safely.
