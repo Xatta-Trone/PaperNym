@@ -190,3 +190,21 @@ def test_offline_author_decisions(md_author, author_line, page, expected):
 ])
 def test_offline_year_priority(page, created, expected):
     assert offline_record(info(page, md_title="A useful research article", created=created))["year"] == expected
+
+
+def test_title_search_privacy_switch_sends_no_titles():
+    calls = []
+
+    def get(url, **kwargs):
+        calls.append((url, kwargs))
+        return None
+
+    hidden = "Private unpublished research title"
+    identifier = Identifier({"title_search": False}, get)
+    identifier.identify_online("paper.pdf", info("Abstract", big_title=hidden, md_title=hidden))
+    assert calls == []
+    identifier.identify_online("paper.pdf", info("10.1234/example Abstract", big_title=hidden))
+    assert calls
+    assert all(hidden not in str(call) for call in calls)
+    assert all("query.bibliographic" not in str(call) and "search/match" not in str(call)
+               for call in calls)

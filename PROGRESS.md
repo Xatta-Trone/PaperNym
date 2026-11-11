@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** verify the `title_search` privacy switch
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 20 passed
+- **Next task:** fixed regression cases from SPEC section 17
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 21 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -47,7 +47,7 @@ Rules:
 - [x] `core/identify.py`: DOI, arXiv and title-search paths with verification
 - [x] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
 - [x] `core/identify.py`: outage handling and the offline fallback rules
-- [ ] `title_search` privacy switch honoured
+- [x] `title_search` privacy switch honoured
 - [ ] Regression table in SPEC section 17 passes
 - [ ] Local check: `pdfread` on a copy of every file in `sample_pdfs/`; log the DOI and title guess found for each
 
@@ -279,3 +279,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 20 passed, including outage, author, and year cases.
 - Decisions: Return explicit outcomes for the engine to record later; offline metadata stays marked `pdf-only` and is not put into the online cache.
 - Next: Verify the title-search privacy setting.
+
+### 2026-11-10  M2  Verify title-search privacy
+- Done: Confirmed the disabled title-search setting sends no title query while DOI lookups continue.
+- Files: `tests/test_identify.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_identify.py` — 21 passed.
+- Decisions: Keep the switch in the identification pipeline so every caller inherits the same privacy behavior.
+- Next: Verify the fixed regression cases in SPEC section 17.
