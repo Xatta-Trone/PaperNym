@@ -551,3 +551,6 @@ Newest entry at the bottom. Use this shape:
 - Done: `pypi-release.yml` now also runs on `v*` tag pushes and then publishes to PyPI (manual runs keep the `testpypi` / `pypi` / `build-only` choice). New `test` job runs the full suite on `windows-latest` (offscreen Qt); both publish jobs need `test` and `build`. On a tag, the build job checks the tag equals `__version__` (read from the source file). Same workflow file and environment names, so the owner's trusted publishers still match. `docs/BUILDING.md`: one tag push releases the Windows installer and the PyPI package.
 - Checked: `actionlint` passes for both workflows; the version-check snippet reads 0.1.3 and matches `v0.1.3` locally. Not run on GitHub yet; the next tag push (`v0.1.3`) is the first real run.
 
+
+### 2026-11-11  Release  v0.1.3: first fully automatic release
+- Done: one tag push (`v0.1.3`) ran both workflows, both green: `windows-release.yml` published `PaperNym-Setup-0.1.3.exe` (29 MB) and its `.sha256` at https://github.com/Xatta-Trone/papernym/releases/tag/v0.1.3; `pypi-release.yml` ran the tests on Windows, built and checked the package, and published 0.1.3 to https://pypi.org/project/papernym/ (wheel and sdist; the TestPyPI job was skipped as intended).
