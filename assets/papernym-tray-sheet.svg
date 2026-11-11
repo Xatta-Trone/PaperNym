@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1568" height="960" viewBox="0 0 1568 960">
+<g transform="translate(48,48)"><defs>
+<mask id="i00A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+
+</mask>
+<mask id="i00B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#148596" stroke="#148596" stroke-width="16" stroke-linejoin="round" mask="url(#i00A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFB020" stroke="#FFB020" stroke-width="12" stroke-linejoin="round" mask="url(#i00B)"/></g>
+<g transform="translate(352,48)"><defs>
+<mask id="i01A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i01B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#148596" stroke="#148596" stroke-width="16" stroke-linejoin="round" mask="url(#i01A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFB020" stroke="#FFB020" stroke-width="12" stroke-linejoin="round" mask="url(#i01B)"/><circle cx="192" cy="200" r="44" fill="#7A8088"/><rect x="175" y="181" width="13" height="38" rx="4" fill="#FFFFFF"/><rect x="196" y="181" width="13" height="38" rx="4" fill="#FFFFFF"/></g>
+<g transform="translate(656,48)"><defs>
+<mask id="i02A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i02B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#148596" stroke="#148596" stroke-width="16" stroke-linejoin="round" mask="url(#i02A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFB020" stroke="#FFB020" stroke-width="12" stroke-linejoin="round" mask="url(#i02B)"/><circle cx="192" cy="200" r="44" fill="#2F7DE1"/><path d="M208.4 188.5 A20 20 0 1 1 173.9 191.5" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="butt"/><polygon points="182.7,172.5 158.5,184.4 189.3,198.7" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/></g>
+<g transform="translate(960,48)"><defs>
+<mask id="i03A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i03B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#148596" stroke="#148596" stroke-width="16" stroke-linejoin="round" mask="url(#i03A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFB020" stroke="#FFB020" stroke-width="12" stroke-linejoin="round" mask="url(#i03B)"/><circle cx="192" cy="200" r="44" fill="#FFB020"/><rect x="185" y="174" width="14" height="32" rx="6" fill="#0B3F4A"/><circle cx="192" cy="218" r="8" fill="#0B3F4A"/></g>
+<g transform="translate(1264,48)"><defs>
+<mask id="i04A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i04B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#148596" stroke="#148596" stroke-width="16" stroke-linejoin="round" mask="url(#i04A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFB020" stroke="#FFB020" stroke-width="12" stroke-linejoin="round" mask="url(#i04B)"/><circle cx="192" cy="200" r="44" fill="#E03C31"/><path d="M177 185 L207 215 M207 185 L177 215" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/></g>
+<g transform="translate(48,352)"><defs>
+<mask id="i10A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+
+</mask>
+<mask id="i10B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round" mask="url(#i10A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" mask="url(#i10B)"/></g>
+<g transform="translate(352,352)"><defs>
+<mask id="i11A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i11B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i11C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><rect x="175" y="181" width="13" height="38" rx="4" fill="#000"/><rect x="196" y="181" width="13" height="38" rx="4" fill="#000"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round" mask="url(#i11A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" mask="url(#i11B)"/><circle cx="192" cy="200" r="44" fill="#FFFFFF" mask="url(#i11C)"/></g>
+<g transform="translate(656,352)"><defs>
+<mask id="i12A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i12B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i12C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><path d="M208.4 188.5 A20 20 0 1 1 173.9 191.5" fill="none" stroke="#000" stroke-width="12" stroke-linecap="butt"/><polygon points="182.7,172.5 158.5,184.4 189.3,198.7" fill="#000" stroke="#000" stroke-width="3" stroke-linejoin="round"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round" mask="url(#i12A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" mask="url(#i12B)"/><circle cx="192" cy="200" r="44" fill="#FFFFFF" mask="url(#i12C)"/></g>
+<g transform="translate(960,352)"><defs>
+<mask id="i13A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i13B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i13C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><rect x="185" y="174" width="14" height="32" rx="6" fill="#000"/><circle cx="192" cy="218" r="8" fill="#000"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round" mask="url(#i13A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" mask="url(#i13B)"/><circle cx="192" cy="200" r="44" fill="#FFFFFF" mask="url(#i13C)"/></g>
+<g transform="translate(1264,352)"><defs>
+<mask id="i14A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i14B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i14C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><path d="M177 185 L207 215 M207 185 L177 215" fill="none" stroke="#000" stroke-width="14" stroke-linecap="round"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round" mask="url(#i14A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" mask="url(#i14B)"/><circle cx="192" cy="200" r="44" fill="#FFFFFF" mask="url(#i14C)"/></g>
+<g transform="translate(48,656)"><defs>
+<mask id="i20A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+
+</mask>
+<mask id="i20B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+
+</mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#333333" stroke="#333333" stroke-width="16" stroke-linejoin="round" mask="url(#i20A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#333333" stroke="#333333" stroke-width="12" stroke-linejoin="round" mask="url(#i20B)"/></g>
+<g transform="translate(352,656)"><defs>
+<mask id="i21A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i21B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i21C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><rect x="175" y="181" width="13" height="38" rx="4" fill="#000"/><rect x="196" y="181" width="13" height="38" rx="4" fill="#000"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#333333" stroke="#333333" stroke-width="16" stroke-linejoin="round" mask="url(#i21A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#333333" stroke="#333333" stroke-width="12" stroke-linejoin="round" mask="url(#i21B)"/><circle cx="192" cy="200" r="44" fill="#333333" mask="url(#i21C)"/></g>
+<g transform="translate(656,656)"><defs>
+<mask id="i22A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i22B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i22C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><path d="M208.4 188.5 A20 20 0 1 1 173.9 191.5" fill="none" stroke="#000" stroke-width="12" stroke-linecap="butt"/><polygon points="182.7,172.5 158.5,184.4 189.3,198.7" fill="#000" stroke="#000" stroke-width="3" stroke-linejoin="round"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#333333" stroke="#333333" stroke-width="16" stroke-linejoin="round" mask="url(#i22A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#333333" stroke="#333333" stroke-width="12" stroke-linejoin="round" mask="url(#i22B)"/><circle cx="192" cy="200" r="44" fill="#333333" mask="url(#i22C)"/></g>
+<g transform="translate(960,656)"><defs>
+<mask id="i23A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i23B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i23C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><rect x="185" y="174" width="14" height="32" rx="6" fill="#000"/><circle cx="192" cy="218" r="8" fill="#000"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#333333" stroke="#333333" stroke-width="16" stroke-linejoin="round" mask="url(#i23A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#333333" stroke="#333333" stroke-width="12" stroke-linejoin="round" mask="url(#i23B)"/><circle cx="192" cy="200" r="44" fill="#333333" mask="url(#i23C)"/></g>
+<g transform="translate(1264,656)"><defs>
+<mask id="i24A" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <rect x="125" y="-10" width="14" height="90" fill="#000"/>
+  <rect x="125" y="64" width="140" height="16" fill="#000"/>
+  <path d="M16 112 L38 90 H198 V134 H38 Z" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask>
+<mask id="i24B" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/>
+  <circle cx="56" cy="112" r="11" fill="#000"/>
+  <circle cx="192" cy="200" r="58" fill="#000"/>
+</mask><mask id="i24C" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256"><rect x="0" y="0" width="256" height="256" fill="#fff"/><path d="M177 185 L207 215 M207 185 L177 215" fill="none" stroke="#000" stroke-width="14" stroke-linecap="round"/></mask></defs><path d="M44 20 H128.7 L180 71.3 V236 H44 Z" fill="#333333" stroke="#333333" stroke-width="16" stroke-linejoin="round" mask="url(#i24A)"/><path d="M16 112 L38 90 H198 V134 H38 Z" fill="#333333" stroke="#333333" stroke-width="12" stroke-linejoin="round" mask="url(#i24B)"/><circle cx="192" cy="200" r="44" fill="#333333" mask="url(#i24C)"/></g>
+</svg>

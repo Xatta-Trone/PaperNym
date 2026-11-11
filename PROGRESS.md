@@ -396,3 +396,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_edge_cases.py` — 10 passed; `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-m3-full-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — 151 passed. `git diff --check` — clean. `git diff --name-only -- prototype pdf_metadata.py` — empty; `git ls-files sample_pdfs` — empty.
 - Decisions: Use an exclusive, same-folder move on Linux and the Windows no-replace rename path; restore the original file path if the database transaction fails after a physical rename.
 - Next: Await the owner's instruction before M4 CLI work.
+
+### 2026-11-10  Assets  Add app and tray icons
+- Done: Inspected all six supplied icons. The app PNG is 1024×1024, the ICO has seven sizes from 16×16 through 256×256, both tray PNGs are 1568×960, and both SVGs parse with matching view boxes. Visually checked the PNGs and a Windows-decoded ICO frame. Removed six trailing-space lines from the tray SVG.
+- Files: `assets/papernym-icon-1024.png`, `assets/papernym-icon.ico`, `assets/papernym-icon.svg`, `assets/papernym-tray-preview.png`, `assets/papernym-tray-sheet.png`, `assets/papernym-tray-sheet.svg`, `PROGRESS.md`.
+- Tests: `$env:PAPERNYM_HOME = Join-Path $env:TEMP ('papernym-assets-test-' + [guid]::NewGuid().ToString('N')); .\.venv\Scripts\python.exe -m pytest -q` — 151 passed.
+- Decisions: Keep the supplied source and rendered artwork together for later tray and installer work; no milestone checkbox changed.
+- Next: Begin M4 CLI settings commands when the owner requests the next milestone.

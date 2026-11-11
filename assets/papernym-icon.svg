@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Palette: deep teal #0B5563, white #FFFFFF, amber #FFB020 -->
+
+  <!-- Rounded-square base (transparent outside) -->
+  <rect x="40" y="40" width="944" height="944" rx="220" fill="#0B5563"/>
+
+  <!-- Paper with cut top-right corner (rounded via round-join stroke) -->
+  <path d="M290 230 H600 L734 364 V794 H290 Z"
+        fill="#FFFFFF" stroke="#FFFFFF" stroke-width="36" stroke-linejoin="round"/>
+
+  <!-- Folded corner: white flap separated from the page by a teal crease -->
+  <path d="M600 180 V364 H790" fill="none"
+        stroke="#0B5563" stroke-width="24" stroke-linejoin="miter" stroke-linecap="butt"/>
+
+  <!-- Two abstract content bars (no text) -->
+  <rect x="332" y="402" width="300" height="38" rx="19" fill="#0B5563"/>
+  <rect x="332" y="474" width="200" height="38" rx="19" fill="#0B5563"/>
+
+  <!-- Name tag: teal outline for separation, then amber body -->
+  <path d="M214 650 L294 570 H814 V730 H294 Z"
+        fill="#0B5563" stroke="#0B5563" stroke-width="60" stroke-linejoin="round"/>
+  <path d="M214 650 L294 570 H814 V730 H294 Z"
+        fill="#FFB020" stroke="#FFB020" stroke-width="22" stroke-linejoin="round"/>
+
+  <!-- Tag punch hole and name bar -->
+  <circle cx="304" cy="650" r="26" fill="#FFFFFF"/>
+  <rect x="380" y="630" width="340" height="40" rx="20" fill="#FFFFFF"/>
+</svg>
