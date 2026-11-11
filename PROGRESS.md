@@ -14,8 +14,8 @@ Rules:
 ## Current state
 
 - **Current milestone:** M2
-- **Next task:** shared HTTP layer
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_sources.py` — 4 passed
+- **Next task:** DOI, arXiv, and title identification paths
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q tests/test_http.py` — 10 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -43,7 +43,7 @@ Rules:
 - [x] `core/pdfread.py` on `pypdfium2`: text, lines with font size, rotation, properties, extra keys, XMP
 - [x] `core/pdfread.py`: title guess, author line, `paperish`, unreadable PDFs
 - [x] `core/sources/`: crossref, doiorg, openalex, semanticscholar, arxiv with field mapping (both years)
-- [ ] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
+- [x] Shared HTTP layer: timeout, retry, 401/403/429 handling, user agent
 - [ ] `core/identify.py`: DOI, arXiv and title-search paths with verification
 - [ ] `core/identify.py`: paper cache and `misses` table (no repeat lookups)
 - [ ] `core/identify.py`: outage handling and the offline fallback rules
@@ -251,3 +251,10 @@ Newest entry at the bottom. Use this shape:
 - Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_sources.py` — 4 passed with injected fake HTTP responses.
 - Decisions: Keep adapters independent of transport; the shared HTTP layer supplies timeout, retries, and user-agent headers in the next task.
 - Next: Implement the shared HTTP request layer.
+
+### 2026-11-10  M2  Add shared HTTP transport
+- Done: Added a 12-second timeout, one retry for connection errors/429/5xx, explicit rejected-key errors, not-found handling, and the PaperNym user agent.
+- Files: `src/papernym/core/sources/http.py`, `tests/test_http.py`, `PROGRESS.md`.
+- Tests: `.venv\Scripts\python.exe -m pytest -q tests/test_http.py` — 10 passed with fake sessions and no network.
+- Decisions: Keep transport injectable so service and identification tests never make live requests.
+- Next: Implement and verify DOI, arXiv, and title-search identification paths.
