@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     env:
-      RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
       QT_QPA_PLATFORM: offscreen
     steps:
       - name: Check out
