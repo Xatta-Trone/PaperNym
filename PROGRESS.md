@@ -15,7 +15,7 @@ Rules:
 
 - **Current milestone:** M5 built; waiting for the owner's manual checklist pass on Windows 11
 - **Next task:** Owner runs `docs/M5_MANUAL_CHECKLIST.md`; then M6 `scripts/build_windows.py`
-- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 214 passed
+- **Last test run:** `.venv\Scripts\python.exe -m pytest -q` — 215 passed
 - **Open questions for the owner:** none
 
 ## Milestones
@@ -460,4 +460,11 @@ Newest entry at the bottom. Use this shape:
 - Files: `src/papernym/gui/{theme,app,worker,tabs,table,window}.py`, `src/papernym/core/{watcher,config}.py`, `tests/test_gui.py`, `SPEC.md`, `docs/M5_MANUAL_CHECKLIST.md`, `PROGRESS.md`.
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 214 passed (5 new: held folder waits for its preview, closing the preview removes the folder, second sandbox launch, theme switch, theme validation). Offscreen screenshots of Activity and General checked in both themes.
 - Problem found: restyling the application on every new Controller crashed Qt in the test run (access violation while repolishing); the theme is now applied only when light/dark actually changes.
+
+### 2026-11-11  M5  Owner feedback: re-added originals, light theme polish
+- Cause: after the owner deleted the renamed files and pasted the original downloads back, PaperNym saw known content whose named file was gone and applied rule 5 (moved or hand-renamed: keep the user's name), silently. Both the watcher and Scan now skipped them. Rule 5 now has an exception: when the new name is exactly the name PaperNym renamed that file from, the old row is dropped and the file is renamed again from the saved record (no web call). Genuine moves and hand renames are still respected and now show a "your name is kept" line in Activity.
+- Theme: the active tab is teal with white text in both modes; checkboxes (including the Folders list) show a white tick on teal; combo boxes have a chevron arrow and themed list; progress text is readable (light teal bar with dark text in light mode); spin boxes keep the native style. SVG assets added to `src/papernym/gui/icons/` and package data.
+- Files: `src/papernym/core/engine.py`, `src/papernym/gui/theme.py`, `src/papernym/gui/icons/*.svg`, `pyproject.toml`, `tests/test_engine.py`, `SPEC.md`, `PROGRESS.md`.
+- Tests: `.\.venv\Scripts\python.exe -m pytest -q` — 215 passed (1 new engine test). Offscreen screenshots of Activity, Folders, Naming and General checked in light and dark.
+- Note: a sandbox that already skipped the pasted originals keeps them as hand-named; start a new sandbox to retry.
 

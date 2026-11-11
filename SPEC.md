@@ -495,7 +495,11 @@ it is a regular file, and it matches no `exclude` pattern.
    name. Forget the old row and treat as new.
 5. **Not known by path, fingerprint matches a row whose file no longer exists:** the user
    moved or renamed it. Update the row's path. If status is `ok`, stop: the user's name is
-   respected.
+   respected (an Activity line says so).
+   **Exception:** if PaperNym had named that file and the new file has exactly the name it
+   had before that rename (the user deleted PaperNym's file and pasted the original download
+   again), forget the old row and rename the file again from the saved paper record, with no
+   web call.
 6. **Not known by path, fingerprint matches a row whose file still exists:** this is a
    copy. Reuse that paper record (no web call) and rename; the collision rule adds `_dup2`.
 7. **Known, status not `ok`:** stop unless this is a retry pass, the name is not
@@ -707,6 +711,7 @@ The tray app and the CLI share the settings folder and database.
 | 3 | Same paper, different PDF (publisher vs preprint) | Paper cache hit by DOI; no web call; `_dup2` if the name collides |
 | 4 | User renames a tool-named file | Respected forever; skipped by reformat unless included |
 | 5 | User moves a file to another folder | Recognised by fingerprint; left alone |
+| 5a | User deletes a renamed file and pastes the original download back | Renamed again from the saved record; no web call |
 | 6 | User annotates and saves a PDF | Still recognised; fingerprint refreshed |
 | 7 | Download still in progress | Wait for stable size; partial files never read |
 | 8 | File open in a PDF viewer | `pending`; retried; metadata not looked up again |

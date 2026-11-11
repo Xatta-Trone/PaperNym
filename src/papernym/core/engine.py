@@ -205,6 +205,13 @@ class Engine:
         if prior is None:
             twins = self.db.files_by_fingerprint(fp)
             stale = next((row for row in twins if not Path(row["display_path"]).exists()), None)
+            if stale and self._original_returned(stale, path):
+                # The tool-named file is gone and the same PDF is back under the name it had
+                # before PaperNym renamed it (for example the original download pasted again):
+                # name it again from the saved record, with no web call.
+                if not dry_run:
+                    self.db.delete_file(stale["path"])
+                twin, stale = stale, None
             if stale:
                 moved = dict(stale)
                 moved.update(self._row(path, fp, stale["status"], stale["paper_id"],
@@ -215,8 +222,10 @@ class Engine:
                 else:
                     prior = moved
                 if prior["status"] == "ok":
+                    if not dry_run:
+                        self._event("skipped", path, "moved or renamed by you; your name is kept")
                     return ProcessResult("skipped", path, "moved or hand-renamed file")
-            else:
+            elif twin is None:
                 twin = next((row for row in twins if row["paper_id"]), None)
         if prior and prior["given_name"] and prior["given_name"] != path.name:
             return ProcessResult("skipped", path, "hand-renamed file")
@@ -253,6 +262,17 @@ class Engine:
             return ProcessResult("unknown", path, "paper not identified")
         return self._rename(path, fp, outcome.match, attempts, batch,
                             given_name=prior["given_name"] if prior else None, dry_run=dry_run)
+
+    def _original_returned(self, stale, path: Path) -> bool:
+        """True if ``stale`` was named by PaperNym and ``path`` has that file's pre-rename name."""
+        if stale["status"] != "ok" or not stale["paper_id"]:
+            return False
+        if stale["given_name"] != Path(stale["display_path"]).name:
+            return False  # the user had already renamed it
+        row = self.db.conn.execute(
+            "SELECT old_path FROM history WHERE new_path=? AND undone=0 ORDER BY id DESC LIMIT 1",
+            (str(stale["display_path"]),)).fetchone()
+        return bool(row) and os.path.normcase(Path(row["old_path"]).name) == os.path.normcase(path.name)
 
     @staticmethod
     def _inside(path: str | Path, root: str | Path, recursive: bool = True) -> bool:

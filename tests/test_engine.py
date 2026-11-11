@@ -383,3 +383,25 @@ def test_dry_run_plans_do_not_block_later_real_renames(tmp_path):
         worker.reformat(dry_run=True)
         result = worker.process(path, retry=True)
         assert result.path.name == "2025_Smith_A_useful_research_article.pdf"
+
+
+def test_original_pasted_back_after_deleting_the_named_copy_is_renamed_again(tmp_path):
+    original = tmp_path / "download.pdf"
+    original.write_bytes(b"PDF")
+    events = []
+    fake = FakeIdentifier(outcome())
+    with Database(tmp_path / "home") as db:
+        worker = engine(db, fake, events)
+        named = worker.process(original).path
+        named.unlink()  # the user deletes PaperNym's file...
+        original.write_bytes(b"PDF")  # ...and pastes the original download again
+        result = worker.process(original)
+        assert result.status == "ok" and result.path == named and named.exists()
+        assert fake.calls == 1  # named from the saved record, no new lookup
+        assert len(db.history()) == 2
+        # a different name chosen by the user is still respected, and says so
+        mine = tmp_path / "Mine.pdf"
+        named.rename(mine)
+        assert worker.process(mine).status == "skipped"
+        assert events[-1]["type"] == "skipped" and "your name is kept" in events[-1]["message"]
+        assert mine.exists()

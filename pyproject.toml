@@ -30,7 +30,7 @@ version = {attr = "papernym.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"papernym.gui" = ["icons/*.png", "icons/*.ico"]
+"papernym.gui" = ["icons/*.png", "icons/*.ico", "icons/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
