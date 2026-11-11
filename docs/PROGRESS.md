@@ -554,3 +554,9 @@ Newest entry at the bottom. Use this shape:
 
 ### 2026-11-11  Release  v0.1.3: first fully automatic release
 - Done: one tag push (`v0.1.3`) ran both workflows, both green: `windows-release.yml` published `PaperNym-Setup-0.1.3.exe` (29 MB) and its `.sha256` at https://github.com/Xatta-Trone/papernym/releases/tag/v0.1.3; `pypi-release.yml` ran the tests on Windows, built and checked the package, and published 0.1.3 to https://pypi.org/project/papernym/ (wheel and sdist; the TestPyPI job was skipped as intended).
+
+
+### 2026-11-11  Release  v0.1.4: Linux .deb and macOS pip support
+- Done: one tag push (`v0.1.4`) ran three workflows. `windows-release.yml` published `PaperNym-Setup-0.1.4.exe`; the new `linux-release.yml` built `papernym_0.1.4_amd64.deb` on Ubuntu 22.04, installed and ran it, and attached it to the same release (https://github.com/Xatta-Trone/papernym/releases/tag/v0.1.4); `pypi-release.yml` ran the tests on Windows, Ubuntu 22.04 and macOS 15 and published 0.1.4 to PyPI.
+- Problem: the first PyPI upload was refused (`invalid-publisher`) because the GitHub repository had been renamed from `papernym` to `PaperNym`; the owner updated the trusted publishers on PyPI and TestPyPI to `PaperNym`, and re-running the failed job published it.
+- Checked: `pip install papernym==0.1.4` from PyPI in a clean environment prints `papernym 0.1.4`. The .deb was tested by hand on an Ubuntu desktop; macOS has passed CI only, not a real Mac.
